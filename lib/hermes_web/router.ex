@@ -1,6 +1,8 @@
 defmodule HermesWeb.Router do
   use HermesWeb, :router
 
+  import HermesWeb.UserAuth
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -8,6 +10,7 @@ defmodule HermesWeb.Router do
     plug :put_root_layout, html: {HermesWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
   end
 
   pipeline :api do
@@ -19,18 +22,12 @@ defmodule HermesWeb.Router do
     get "/healthz", HealthController, :show
   end
 
-  scope "/", HermesWeb do
-    pipe_through :browser
-
-    get "/", PageController, :home
-  end
-
   # Other scopes may use custom stacks.
   # scope "/api", HermesWeb do
   #   pipe_through :api
   # end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
+  # Enable LiveDashboard in development
   if Application.compile_env(:hermes, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
@@ -43,7 +40,44 @@ defmodule HermesWeb.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard", metrics: HermesWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  ## Authentication routes
+
+  scope "/", HermesWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :require_authenticated_user,
+      on_mount: [{HermesWeb.UserAuth, :require_authenticated}] do
+      live "/", DashboardLive, :index
+
+      live "/people", PersonLive.Index, :index
+      live "/people/new", PersonLive.Form, :new
+      live "/people/:id/edit", PersonLive.Form, :edit
+
+      live "/settings", SettingsLive, :edit
+
+      live "/users", UserLive.Index, :index
+      live "/users/new", UserLive.Form, :new
+      live "/users/:id/password", UserLive.Form, :password
+
+      live "/users/settings", UserLive.Settings, :edit
+    end
+
+    get "/settings/contact.vcf", ContactController, :show
+    post "/users/update-password", UserSessionController, :update_password
+  end
+
+  scope "/", HermesWeb do
+    pipe_through [:browser]
+
+    live_session :current_user,
+      on_mount: [{HermesWeb.UserAuth, :mount_current_scope}] do
+      live "/users/log-in", UserLive.Login, :new
+    end
+
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
   end
 end

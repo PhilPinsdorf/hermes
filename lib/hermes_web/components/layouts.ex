@@ -35,35 +35,43 @@ defmodule HermesWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
+    <header class="navbar border-b border-base-300 px-4 sm:px-6 lg:px-8">
+      <div class="flex-1 flex items-center gap-6">
+        <.link navigate={~p"/"} class="flex items-center gap-2 font-semibold">
+          <.icon name="hero-phone-arrow-up-right" class="size-5" /> Hermes
+        </.link>
+        <nav :if={@current_scope && @current_scope.user} class="hidden sm:flex gap-1">
+          <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
+          <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
+          <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
+          <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
+        </nav>
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
+      <div class="flex-none flex items-center gap-2">
+        <%= if @current_scope && @current_scope.user do %>
+          <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm hidden md:inline-flex">
+            {@current_scope.user.email}
+          </.link>
+          <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">
+            Abmelden
+          </.link>
+        <% end %>
+        <.theme_toggle />
       </div>
     </header>
+    <nav
+      :if={@current_scope && @current_scope.user}
+      class="sm:hidden flex gap-1 overflow-x-auto px-4 py-2 border-b border-base-300"
+    >
+      <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
+      <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
+      <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
+      <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
+      <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm">Konto</.link>
+    </nav>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    <main class="px-4 py-10 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-3xl space-y-4">
         {render_slot(@inner_block)}
       </div>
     </main>

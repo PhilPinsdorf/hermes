@@ -7,6 +7,19 @@
 # General application configuration
 import Config
 
+config :hermes, :scopes,
+  user: [
+    default: true,
+    module: Hermes.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :id,
+    schema_table: :users,
+    test_data_fixture: Hermes.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 config :hermes,
   ecto_repos: [Hermes.Repo],
   generators: [timestamp_type: :utc_datetime]
@@ -56,6 +69,9 @@ config :tailwind,
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
+
+# The UI is German; this also translates Ecto's validation messages.
+config :hermes, HermesWeb.Gettext, default_locale: "de"
 
 # Shift schedules are defined in local time (Europe/Berlin), so we need a
 # real time zone database for DST-aware conversions.

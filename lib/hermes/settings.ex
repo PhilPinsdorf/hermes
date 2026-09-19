@@ -1,0 +1,72 @@
+defmodule Hermes.Settings do
+  @moduledoc """
+  Global, instance-wide settings (one row per deployment).
+  """
+
+  alias Hermes.Repo
+  alias Hermes.Settings.Setting
+
+  @id 1
+
+  @doc """
+  Returns the settings, creating the row with defaults on first access.
+  """
+  def get do
+    case Repo.get(Setting, @id) do
+      nil ->
+        # on_conflict: two concurrent first accesses must not crash each other.
+        Repo.insert!(%Setting{id: @id}, on_conflict: :nothing, conflict_target: :id)
+        Repo.get!(Setting, @id)
+
+      setting ->
+        setting
+    end
+  end
+
+  @doc """
+  Updates the settings.
+  """
+  def update(attrs) do
+    get()
+    |> Setting.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking settings changes.
+  """
+  def change(%Setting{} = setting, attrs \\ %{}) do
+    Setting.changeset(setting, attrs)
+  end
+
+  @doc """
+  Builds the vCard every on-duty person imports once, so forwarded calls show
+  `clip_display_name` on their phone. Returns `{:error, :no_clip_number}` until
+  the number is configured.
+  """
+  def vcard(%Setting{clip_number: nil}), do: {:error, :no_clip_number}
+
+  def vcard(%Setting{clip_number: number, clip_display_name: name}) do
+    name = escape_vcard(name)
+
+    card =
+      [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        "N:#{name};;;;",
+        "FN:#{name}",
+        "TEL;TYPE=WORK,VOICE:#{number}",
+        "END:VCARD"
+      ]
+      |> Enum.join("\r\n")
+
+    {:ok, card <> "\r\n"}
+  end
+
+  defp escape_vcard(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace(~r/[,;]/, &("\\" <> &1))
+    |> String.replace(~r/\r?\n/, "\\n")
+  end
+end

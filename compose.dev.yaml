@@ -2,6 +2,9 @@
 # Credentials match config/dev.exs and config/test.exs.
 #
 #   docker compose -f compose.dev.yaml up -d
+#
+# Separate project name, so it never collides with the production stack's `db`.
+name: hermes-dev
 
 services:
   db:
