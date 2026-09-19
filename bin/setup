@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Creates .env from .env.example and fills in freshly generated secrets.
+# Safe to re-run: never overwrites an existing .env.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if [[ -f .env ]]; then
+  echo ".env already exists, leaving it untouched."
+  exit 0
+fi
+
+secret() { openssl rand -base64 "$1" | tr -d '\n/+=' | cut -c1-"$2"; }
+
+cp .env.example .env
+sed -i \
+  -e "s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=$(secret 64 64)|" \
+  -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(secret 32 32)|" \
+  -e "s|^ARI_PASSWORD=.*|ARI_PASSWORD=$(secret 32 32)|" \
+  .env
+chmod 600 .env
+
+echo "Created .env with fresh secrets. Review PHX_HOST and HTTP_BIND, then run: docker compose up -d"

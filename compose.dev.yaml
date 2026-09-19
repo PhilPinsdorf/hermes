@@ -1,0 +1,18 @@
+# Local development database for `mix phx.server` / `mix test`.
+# Credentials match config/dev.exs and config/test.exs.
+#
+#   docker compose -f compose.dev.yaml up -d
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata_dev:

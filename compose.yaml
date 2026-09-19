@@ -1,0 +1,44 @@
+# Production stack, one instance per customer. Configure via .env (see .env.example, bin/setup).
+# The Asterisk service (host networking) joins in milestone M3.
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hermes
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run bin/setup first}
+      POSTGRES_DB: hermes
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hermes -d hermes"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: hermes:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PHX_SERVER: "true"
+      PORT: "4000"
+      DATABASE_URL: ecto://hermes:${POSTGRES_PASSWORD}@db/hermes
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?run bin/setup first}
+      PHX_HOST: ${PHX_HOST:-localhost}
+      PHX_URL_SCHEME: ${PHX_URL_SCHEME:-http}
+      PHX_URL_PORT: ${PHX_URL_PORT:-4000}
+      ARI_URL: ${ARI_URL:-http://host.docker.internal:8088}
+      ARI_USER: ${ARI_USER:-hermes}
+      ARI_PASSWORD: ${ARI_PASSWORD:?run bin/setup first}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:4000:4000"
+
+volumes:
+  pgdata:
