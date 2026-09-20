@@ -52,6 +52,11 @@ defmodule HermesWeb.Router do
       on_mount: [{HermesWeb.UserAuth, :require_authenticated}] do
       live "/", DashboardLive, :index
 
+      live "/schedule", ScheduleLive, :index
+      live "/schedule/shifts/new", ScheduleLive, :new
+      live "/schedule/shifts/:id/edit", ScheduleLive, :edit
+      live "/schedule/overrides", OverrideLive, :index
+
       live "/people", PersonLive.Index, :index
       live "/people/new", PersonLive.Form, :new
       live "/people/:id/edit", PersonLive.Form, :edit
@@ -60,7 +65,6 @@ defmodule HermesWeb.Router do
 
       live "/users", UserLive.Index, :index
       live "/users/new", UserLive.Form, :new
-      live "/users/:id/password", UserLive.Form, :password
 
       live "/users/settings", UserLive.Settings, :edit
     end

@@ -35,12 +35,19 @@ defmodule HermesWeb.UserManagementLiveTest do
       refute Accounts.get_user_by_email(other.email)
     end
 
-    test "offers no delete or password link for oneself", %{conn: conn, user: user} do
+    test "offers no delete link for oneself", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users")
 
       refute has_element?(lv, "#users-#{user.id} a", "Löschen")
-      refute has_element?(lv, "#users-#{user.id} a", "Passwort setzen")
       assert has_element?(lv, "#users-#{user.id} a", "Mein Konto")
+    end
+
+    test "offers no password link for other users", %{conn: conn} do
+      other = user_fixture()
+      {:ok, lv, html} = live(conn, ~p"/users")
+
+      refute html =~ "Passwort"
+      refute has_element?(lv, ~s(a[href="/users/#{other.id}/password"]))
     end
   end
 
@@ -73,27 +80,10 @@ defmodule HermesWeb.UserManagementLiveTest do
     end
   end
 
-  describe "Form :password" do
-    test "sets a new password for another user and ends their sessions", %{conn: conn} do
+  describe "no editing of other users' passwords" do
+    test "there is no route to set another user's password", %{conn: conn} do
       other = user_fixture()
-      token = Accounts.generate_user_session_token(other)
-
-      {:ok, lv, _html} = live(conn, ~p"/users/#{other}/password")
-
-      assert {:ok, _index, html} =
-               lv
-               |> form("#user-form", user: %{password: "ganz neues passwort"})
-               |> render_submit()
-               |> follow_redirect(conn, ~p"/users")
-
-      assert html =~ "Passwort für #{other.email} wurde gesetzt."
-      assert Accounts.get_user_by_email_and_password(other.email, "ganz neues passwort")
-      refute Accounts.get_user_by_session_token(token)
-    end
-
-    test "redirects to the account page for one's own password", %{conn: conn, user: user} do
-      assert {:error, {:live_redirect, %{to: "/users/settings"}}} =
-               live(conn, ~p"/users/#{user}/password")
+      assert get(conn, "/users/#{other.id}/password").status == 404
     end
   end
 end

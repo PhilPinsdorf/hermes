@@ -31,6 +31,8 @@ defmodule HermesWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :wide, :boolean, default: false, doc: "use the full width, e.g. for the weekly grid"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -42,6 +44,7 @@ defmodule HermesWeb.Layouts do
         </.link>
         <nav :if={@current_scope && @current_scope.user} class="hidden sm:flex gap-1">
           <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
+          <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
           <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
           <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
           <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
@@ -64,6 +67,7 @@ defmodule HermesWeb.Layouts do
       class="sm:hidden flex gap-1 overflow-x-auto px-4 py-2 border-b border-base-300"
     >
       <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
+      <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
       <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
       <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
       <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
@@ -71,7 +75,7 @@ defmodule HermesWeb.Layouts do
     </nav>
 
     <main class="px-4 py-10 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-3xl space-y-4">
+      <div class={["mx-auto space-y-4", (@wide && "max-w-6xl") || "max-w-3xl"]}>
         {render_slot(@inner_block)}
       </div>
     </main>

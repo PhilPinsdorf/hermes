@@ -23,6 +23,10 @@ end
 config :hermes, HermesWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if time_zone = System.get_env("HERMES_TIME_ZONE") do
+  config :hermes, :time_zone, time_zone
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

@@ -109,8 +109,11 @@ Controllers automatically have the `current_scope` available if they use the `:b
 
 - **No email flows at all**: no registration, no magic link, no email confirmation, no
   email-change links. Hermes must work without a mail server. Users are created by other
-  users (`/users`) or `bin/create_admin` / `mix hermes.create_admin`; a forgotten password
-  is reset by another user. Email changes apply directly, protected by sudo mode.
+  users (`/users`) or `bin/create_admin` / `mix hermes.create_admin`. Email changes apply
+  directly, protected by sudo mode.
+- **Users can never change another user's password.** A forgotten password is reset by the
+  operator via `bin/reset_password` / `mix hermes.reset_password`. An email-based reset is
+  planned later, but a mail server must always stay optional.
 - **Contexts are not user-scoped**: every user may see and change everything (single
   tenant, one deployment per customer). Do not add `current_scope` filtering to
   `Hermes.Directory`, `Hermes.Settings` etc.

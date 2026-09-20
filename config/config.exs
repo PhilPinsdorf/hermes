@@ -77,6 +77,9 @@ config :hermes, HermesWeb.Gettext, default_locale: "de"
 # real time zone database for DST-aware conversions.
 config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 
+# Time zone the weekly plan is interpreted in (overridable via HERMES_TIME_ZONE).
+config :hermes, :time_zone, "Europe/Berlin"
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 

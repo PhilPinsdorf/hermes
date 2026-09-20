@@ -1,23 +1,52 @@
 #!/usr/bin/env bash
 # Creates .env from .env.example and fills in freshly generated secrets.
-# Safe to re-run: never overwrites an existing .env.
+#
+# Safe to re-run, e.g. after an update: existing values are never changed,
+# only keys that are new in .env.example are appended.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if [[ -f .env ]]; then
-  echo ".env already exists, leaving it untouched."
-  exit 0
-fi
-
 secret() { openssl rand -base64 "$1" | tr -d '\n/+=' | cut -c1-"$2"; }
 
-cp .env.example .env
-sed -i \
-  -e "s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=$(secret 64 64)|" \
-  -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(secret 32 32)|" \
-  -e "s|^ARI_PASSWORD=.*|ARI_PASSWORD=$(secret 32 32)|" \
-  .env
-chmod 600 .env
+# Value for a key when it is added to .env: generated secret or the example default.
+value_for() {
+  case "$1" in
+    SECRET_KEY_BASE) secret 64 64 ;;
+    POSTGRES_PASSWORD | ARI_PASSWORD) secret 32 32 ;;
+    *) sed -n "s/^$1=//p" .env.example ;;
+  esac
+}
 
-echo "Created .env with fresh secrets. Review PHX_HOST and HTTP_BIND, then run: docker compose up -d"
+if [[ ! -f .env ]]; then
+  cp .env.example .env
+  chmod 600 .env
+  for key in SECRET_KEY_BASE POSTGRES_PASSWORD ARI_PASSWORD; do
+    sed -i "s|^$key=.*|$key=$(value_for "$key")|" .env
+  done
+  echo "Created .env with fresh secrets."
+else
+  added=()
+  while IFS= read -r key; do
+    if ! grep -q "^$key=" .env; then
+      printf '%s=%s\n' "$key" "$(value_for "$key")" >>.env
+      added+=("$key")
+    fi
+  done < <(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example)
+
+  if ((${#added[@]})); then
+    echo "Added to .env: ${added[*]}"
+  else
+    echo ".env is up to date."
+  fi
+fi
+
+missing=()
+for key in FRITZBOX_SIP_USER FRITZBOX_SIP_PASSWORD; do
+  grep -q "^$key=." .env || missing+=("$key")
+done
+if ((${#missing[@]})); then
+  echo "Still to fill in: ${missing[*]} (see docs/fritzbox.md)"
+fi
+
+echo "Review PHX_HOST and HTTP_BIND, then run: docker compose up -d"

@@ -5,6 +5,8 @@ defmodule Hermes.Release do
   """
   @app :hermes
 
+  alias Hermes.Accounts
+
   def migrate do
     load_app()
 
@@ -23,16 +25,31 @@ defmodule Hermes.Release do
   Called by `bin/create_admin`, which prompts for the password.
   """
   def create_admin do
+    run_user_task(&create_user/2, "angelegt")
+  end
+
+  @doc """
+  Sets a new password for `HERMES_ADMIN_EMAIL` from `HERMES_ADMIN_PASSWORD` and
+  ends all of that user's sessions. Called by `bin/reset_password`.
+
+  This is the operator's way to recover a forgotten password; users cannot
+  change each other's passwords in the web UI.
+  """
+  def reset_password do
+    run_user_task(&reset_user_password/2, "hat ein neues Passwort, alle Sitzungen wurden beendet")
+  end
+
+  defp run_user_task(fun, success) do
     load_app()
     email = System.fetch_env!("HERMES_ADMIN_EMAIL")
     password = System.fetch_env!("HERMES_ADMIN_PASSWORD")
 
     [repo | _] = repos()
-    {:ok, result, _} = Ecto.Migrator.with_repo(repo, fn _ -> create_user(email, password) end)
+    {:ok, result, _} = Ecto.Migrator.with_repo(repo, fn _ -> fun.(email, password) end)
 
     case result do
       {:ok, user} ->
-        IO.puts("Benutzer #{user.email} angelegt.")
+        IO.puts("Benutzer #{user.email} #{success}.")
 
       {:error, message} ->
         IO.puts(:stderr, message)
@@ -45,20 +62,32 @@ defmodule Hermes.Release do
   Shared by the release task and `mix hermes.create_admin`.
   """
   def create_user(email, password) do
-    case Hermes.Accounts.create_user(%{email: email, password: password}) do
-      {:ok, user} ->
-        {:ok, user}
-
-      {:error, changeset} ->
-        # Same German messages as in the web UI.
-        errors =
-          Ecto.Changeset.traverse_errors(changeset, &HermesWeb.CoreComponents.translate_error/1)
-
-        {:error,
-         Enum.map_join(errors, "\n", fn {field, msgs} ->
-           "#{field}: #{Enum.join(msgs, ", ")}"
-         end)}
+    case Accounts.create_user(%{email: email, password: password}) do
+      {:ok, user} -> {:ok, user}
+      {:error, changeset} -> {:error, format_errors(changeset)}
     end
+  end
+
+  @doc """
+  Sets a new password and expires all sessions of the user. Returns `{:ok, user}`
+  or `{:error, human_readable_message}`.
+  """
+  def reset_user_password(email, password) do
+    with {:user, %Accounts.User{} = user} <- {:user, Accounts.get_user_by_email(email)},
+         {:ok, {user, _expired_tokens}} <-
+           Accounts.update_user_password(user, %{password: password}) do
+      {:ok, user}
+    else
+      {:user, nil} -> {:error, "Es gibt keinen Benutzer mit der E-Mail #{email}."}
+      {:error, changeset} -> {:error, format_errors(changeset)}
+    end
+  end
+
+  # Same German messages as in the web UI.
+  defp format_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(&HermesWeb.CoreComponents.translate_error/1)
+    |> Enum.map_join("\n", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
   end
 
   defp repos do

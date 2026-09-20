@@ -50,7 +50,7 @@ defmodule HermesWeb.UserLive.Login do
         </.form>
 
         <p class="text-sm text-base-content/70 text-center">
-          Passwort vergessen? Ein anderer Benutzer kann es unter „Benutzer“ neu setzen.
+          Passwort vergessen? Bitte wende dich an den Betreiber dieser Installation.
         </p>
       </div>
     </Layouts.app>

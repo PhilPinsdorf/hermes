@@ -29,9 +29,6 @@ defmodule HermesWeb.UserLive.Index do
           <.link :if={self?(user, @current_scope)} navigate={~p"/users/settings"}>
             Mein Konto
           </.link>
-          <.link :if={!self?(user, @current_scope)} navigate={~p"/users/#{user}/password"}>
-            Passwort setzen
-          </.link>
         </:action>
         <:action :let={{id, user}}>
           <.link

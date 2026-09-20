@@ -1,5 +1,5 @@
 # Production stack, one instance per customer. Configure via .env (see .env.example, bin/setup).
-# The Asterisk service (host networking) joins in milestone M3.
+# Fritz!Box setup: docs/fritzbox.md
 
 services:
   db:
@@ -39,6 +39,24 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "${HTTP_BIND:-127.0.0.1}:4000:4000"
+
+  # SIP/RTP through Docker NAT is a constant source of one-way audio, so Asterisk
+  # uses the host network. It binds SIP to the LAN interface only and ARI to the
+  # Docker bridge only (see asterisk/entrypoint.sh).
+  asterisk:
+    build: ./asterisk
+    image: hermes-asterisk:latest
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      FRITZBOX_HOST: ${FRITZBOX_HOST:-192.168.178.1}
+      FRITZBOX_SIP_USER: ${FRITZBOX_SIP_USER:-}
+      FRITZBOX_SIP_PASSWORD: ${FRITZBOX_SIP_PASSWORD:-}
+      SIP_BIND_ADDRESS: ${SIP_BIND_ADDRESS:-}
+      ARI_BIND_ADDRESS: ${ARI_BIND_ADDRESS:-}
+      ARI_USER: ${ARI_USER:-hermes}
+      ARI_PASSWORD: ${ARI_PASSWORD:?run bin/setup first}
+      HERMES_CALL_MODE: ${HERMES_CALL_MODE:-test}
 
 volumes:
   pgdata:

@@ -1,0 +1,406 @@
+defmodule HermesWeb.ScheduleLive do
+  @moduledoc """
+  The weekly plan: a 7-column grid in 30-minute rows. Drag in a day column to
+  create a shift, click a shift to edit it. Shifts past midnight continue in
+  the next day's column.
+  """
+  use HermesWeb, :live_view
+
+  alias Hermes.Directory
+  alias Hermes.Schedule
+  alias Hermes.Schedule.Shift
+  alias HermesWeb.ScheduleGrid
+
+  # One horizontal line per hour (the column is 60rem = 24 × 2.5rem tall).
+  @hour_lines "background-image: repeating-linear-gradient(to bottom, transparent 0, " <>
+                "transparent calc(2.5rem - 1px), var(--color-base-300) calc(2.5rem - 1px), " <>
+                "var(--color-base-300) 2.5rem);"
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash} current_scope={@current_scope} wide>
+      <.header>
+        Wochenplan
+        <:subtitle>
+          In einer Tagesspalte ziehen, um eine Schicht anzulegen; auf eine Schicht klicken, um
+          sie zu bearbeiten. Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter <.link
+            navigate={~p"/schedule/overrides"}
+            class="link"
+          >Ausnahmen</.link>.
+        </:subtitle>
+        <:actions>
+          <.button variant="primary" patch={~p"/schedule/shifts/new"}>
+            <.icon name="hero-plus" /> Schicht anlegen
+          </.button>
+        </:actions>
+      </.header>
+
+      <div :if={@people != []} id="legend" class="flex flex-wrap gap-2 text-sm">
+        <span
+          :for={person <- @people}
+          class={["badge border-l-4", !person.active && "opacity-50"]}
+          style={ScheduleGrid.person_color_style(person)}
+        >
+          {person.name}
+        </span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <div class="min-w-[44rem]">
+          <div class="grid grid-cols-[3rem_repeat(7,1fr)] text-sm font-semibold text-center">
+            <div></div>
+            <div :for={day <- 1..7} class={["py-1", day == @now_day && "text-primary"]}>
+              {ScheduleGrid.day_abbr(day)}
+            </div>
+          </div>
+
+          <div
+            id="schedule-grid"
+            phx-hook=".ShiftGrid"
+            class="grid grid-cols-[3rem_repeat(7,1fr)] select-none"
+          >
+            <div class="relative" style="height: 60rem">
+              <div
+                :for={hour <- 0..23}
+                class="absolute right-1 text-xs text-base-content/50 -translate-y-1/2"
+                style={"top: #{hour / 24 * 100}%"}
+              >
+                {if hour > 0, do: ScheduleGrid.format_minutes(hour * 60)}
+              </div>
+            </div>
+
+            <div
+              :for={day <- 1..7}
+              id={"day-#{day}"}
+              data-day={day}
+              class={[
+                "relative border-l border-base-300 cursor-crosshair",
+                day == @now_day && "bg-base-200/60"
+              ]}
+              style={"height: 60rem; #{@hour_lines}"}
+            >
+              <.link
+                :for={seg <- @grid[day]}
+                id={"shift-#{seg.shift.id}-#{seg.day}"}
+                data-shift={seg.shift.id}
+                patch={~p"/schedule/shifts/#{seg.shift.id}/edit"}
+                class={[
+                  "absolute overflow-hidden border-l-4 px-1 text-xs leading-tight cursor-pointer",
+                  "hover:brightness-110 hover:z-10",
+                  seg.continued? && "rounded-b",
+                  seg.continues? && "rounded-t",
+                  !seg.continued? && !seg.continues? && "rounded",
+                  !seg.shift.active && "opacity-40 border-dashed"
+                ]}
+                style={ScheduleGrid.segment_style(seg)}
+                title={shift_title(seg.shift)}
+              >
+                <span class="font-semibold">{seg.shift.person.name}</span>
+                <span :if={!seg.continued?} class="block opacity-70">
+                  {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
+                    seg.shift.ends_at
+                  )}
+                </span>
+                <span :if={seg.continued?} class="block opacity-70">
+                  ↳ bis {ScheduleGrid.format_time(seg.shift.ends_at)}
+                </span>
+              </.link>
+
+              <div
+                :if={day == @now_day}
+                id="now-marker"
+                class="absolute inset-x-0 border-t-2 border-error z-20 pointer-events-none"
+                style={"top: #{@now_minute / 1440 * 100}%"}
+              >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".ShiftGrid">
+        export default {
+          mounted() {
+            const SLOTS = 48
+            this.el.addEventListener("pointerdown", (e) => {
+              if (e.button !== 0 || e.target.closest("[data-shift]")) return
+              const col = e.target.closest("[data-day]")
+              if (!col) return
+              e.preventDefault()
+
+              const rect = col.getBoundingClientRect()
+              const slotAt = (y) =>
+                Math.max(0, Math.min(SLOTS - 1, Math.floor(((y - rect.top) / rect.height) * SLOTS)))
+              const start = slotAt(e.clientY)
+              let end = start
+
+              const sel = document.createElement("div")
+              sel.className = "absolute inset-x-0 bg-primary/30 border-2 border-primary rounded pointer-events-none z-30"
+              col.appendChild(sel)
+              const range = () => [Math.min(start, end), Math.max(start, end) + 1]
+              const draw = () => {
+                const [a, b] = range()
+                sel.style.top = (a / SLOTS) * 100 + "%"
+                sel.style.height = ((b - a) / SLOTS) * 100 + "%"
+              }
+              draw()
+
+              const move = (ev) => { end = slotAt(ev.clientY); draw() }
+              const up = () => {
+                window.removeEventListener("pointermove", move)
+                window.removeEventListener("pointerup", up)
+                sel.remove()
+                const [a, b] = range()
+                this.pushEvent("select_range", {day: Number(col.dataset.day), from: a * 30, to: b * 30})
+              }
+              window.addEventListener("pointermove", move)
+              window.addEventListener("pointerup", up)
+            })
+          }
+        }
+      </script>
+
+      <div :if={@live_action in [:new, :edit]} id="shift-modal" class="modal modal-open">
+        <div class="modal-box">
+          <h3 class="text-lg font-semibold mb-2">
+            {if @live_action == :new, do: "Schicht anlegen", else: "Schicht bearbeiten"}
+          </h3>
+
+          <%= if @people == [] do %>
+            <p>
+              Zuerst eine Person anlegen:
+              <.link navigate={~p"/people/new"} class="link">Person anlegen</.link>
+            </p>
+            <div class="modal-action">
+              <.button patch={~p"/schedule"}>Schließen</.button>
+            </div>
+          <% else %>
+            <.form for={@form} id="shift-form" phx-change="validate" phx-submit="save">
+              <.input
+                field={@form[:person_id]}
+                type="select"
+                label="Person"
+                options={person_options(@people)}
+                prompt="Bitte wählen"
+                required
+              />
+              <.input
+                field={@form[:day_of_week]}
+                type="select"
+                label="Wochentag"
+                options={for d <- 1..7, do: {ScheduleGrid.day_name(d), d}}
+              />
+              <div class="grid grid-cols-2 gap-2">
+                <.input field={@form[:starts_at]} type="time" label="Beginn" required />
+                <.input field={@form[:ends_at]} type="time" label="Ende" required />
+              </div>
+              <p :if={overnight_hint(@form)} id="overnight-hint" class="text-sm text-info mb-2">
+                {overnight_hint(@form)}
+              </p>
+              <.input
+                field={@form[:position]}
+                type="number"
+                label="Reihenfolge (kleiner = wird zuerst angerufen)"
+                min="0"
+              />
+              <.input field={@form[:active]} type="checkbox" label="Aktiv" />
+
+              <div class="modal-action">
+                <button
+                  :if={@live_action == :edit}
+                  type="button"
+                  id="delete-shift"
+                  phx-click="delete"
+                  data-confirm="Schicht wirklich löschen?"
+                  class="btn btn-error btn-soft mr-auto"
+                >
+                  Löschen
+                </button>
+                <.button patch={~p"/schedule"}>Abbrechen</.button>
+                <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
+              </div>
+            </.form>
+          <% end %>
+        </div>
+        <.link patch={~p"/schedule"} class="modal-backdrop">Schließen</.link>
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  @impl true
+  def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Schedule.subscribe()
+      Directory.subscribe()
+      schedule_tick()
+    end
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Wochenplan")
+     |> assign(:hour_lines, @hour_lines)
+     |> assign_now()
+     |> load()}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :index, _params), do: assign(socket, :shift, nil)
+
+  defp apply_action(socket, :new, params) do
+    shift = %Shift{
+      day_of_week: parse_day(params["day"]),
+      starts_at: parse_time(params["from"], ~T[08:00:00]),
+      ends_at: parse_time(params["to"], ~T[16:00:00])
+    }
+
+    socket
+    |> assign(:shift, shift)
+    |> assign(:form, to_form(Schedule.change_shift(shift)))
+  end
+
+  defp apply_action(socket, :edit, %{"id" => id}) do
+    shift = Schedule.get_shift!(id)
+
+    socket
+    |> assign(:shift, shift)
+    |> assign(:form, to_form(Schedule.change_shift(shift)))
+  end
+
+  @impl true
+  def handle_event("select_range", %{"day" => day, "from" => from, "to" => to}, socket) do
+    params = %{
+      day: day,
+      from: ScheduleGrid.format_minutes(from),
+      # a selection down to midnight ends at 00:00 (of the next day)
+      to: ScheduleGrid.format_minutes(rem(to, 1440))
+    }
+
+    {:noreply, push_patch(socket, to: ~p"/schedule/shifts/new?#{params}")}
+  end
+
+  def handle_event("validate", %{"shift" => params}, socket) do
+    changeset = Schedule.change_shift(socket.assigns.shift, params)
+    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+  end
+
+  def handle_event("save", %{"shift" => params}, socket) do
+    result =
+      case socket.assigns.live_action do
+        :new -> Schedule.create_shift(params)
+        :edit -> Schedule.update_shift(socket.assigns.shift, params)
+      end
+
+    case result do
+      {:ok, _shift} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Schicht gespeichert.")
+         |> load()
+         |> push_patch(to: ~p"/schedule")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, form: to_form(changeset))}
+    end
+  end
+
+  def handle_event("delete", _params, socket) do
+    {:ok, _} = Schedule.delete_shift(socket.assigns.shift)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Schicht gelöscht.")
+     |> load()
+     |> push_patch(to: ~p"/schedule")}
+  end
+
+  @impl true
+  def handle_info({:schedule_changed, _}, socket), do: {:noreply, load(socket)}
+  def handle_info({:person_changed, _}, socket), do: {:noreply, load(socket)}
+
+  def handle_info(:tick, socket) do
+    schedule_tick()
+    {:noreply, assign_now(socket)}
+  end
+
+  defp load(socket) do
+    shifts = Schedule.list_shifts()
+
+    socket
+    |> assign(:grid, ScheduleGrid.layout(shifts))
+    |> assign(:people, Directory.list_people())
+  end
+
+  defp assign_now(socket) do
+    local = Schedule.local_naive(DateTime.utc_now())
+
+    socket
+    |> assign(:now_day, Date.day_of_week(local))
+    |> assign(:now_minute, local.hour * 60 + local.minute)
+  end
+
+  defp schedule_tick, do: Process.send_after(self(), :tick, :timer.seconds(60))
+
+  defp person_options(people) do
+    for p <- people, do: {if(p.active, do: p.name, else: "#{p.name} (inaktiv)"), p.id}
+  end
+
+  defp shift_title(shift) do
+    "#{shift.person.name}: #{ScheduleGrid.day_name(shift.day_of_week)} " <>
+      "#{ScheduleGrid.format_time(shift.starts_at)}–#{ScheduleGrid.format_time(shift.ends_at)}"
+  end
+
+  # Explains overnight / 24h shifts while the form is being filled in.
+  defp overnight_hint(form) do
+    with %Time{} = from <- form_time(form[:starts_at].value),
+         %Time{} = to <- form_time(form[:ends_at].value),
+         day when day in 1..7 <- form_day(form[:day_of_week].value) do
+      next = ScheduleGrid.day_name(ScheduleGrid.next_day(day))
+
+      case Time.compare(to, from) do
+        :gt -> nil
+        :eq -> "24 Stunden – bis #{next}, #{ScheduleGrid.format_time(to)} Uhr."
+        :lt when to == ~T[00:00:00] -> "Endet um Mitternacht."
+        :lt -> "Läuft über Mitternacht bis #{next}, #{ScheduleGrid.format_time(to)} Uhr."
+      end
+    else
+      _ -> nil
+    end
+  end
+
+  defp form_time(%Time{} = t), do: t
+
+  defp form_time(value) when is_binary(value) do
+    case Time.from_iso8601(if String.length(value) == 5, do: value <> ":00", else: value) do
+      {:ok, t} -> t
+      _ -> nil
+    end
+  end
+
+  defp form_time(_), do: nil
+
+  defp form_day(day) when is_integer(day), do: day
+
+  defp form_day(day) when is_binary(day) do
+    case Integer.parse(day) do
+      {d, ""} -> d
+      _ -> nil
+    end
+  end
+
+  defp form_day(_), do: nil
+
+  defp parse_day(value) do
+    case form_day(value) do
+      day when day in 1..7 -> day
+      _ -> 1
+    end
+  end
+
+  defp parse_time(value, default), do: form_time(value) || default
+end
