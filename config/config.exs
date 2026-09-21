@@ -80,6 +80,23 @@ config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 # Time zone the weekly plan is interpreted in (overridable via HERMES_TIME_ZONE).
 config :hermes, :time_zone, "Europe/Berlin"
 
+# Asterisk REST Interface; credentials come from the environment (runtime.exs).
+config :hermes, Hermes.Ari,
+  base_url: "http://127.0.0.1:8088",
+  username: "hermes",
+  password: nil,
+  app: "hermes",
+  enabled: false
+
+config :hermes, :ari_client, Hermes.Ari.Client.Http
+
+# How long the called person has to press a key. The announcement alone runs
+# about 7 seconds, so this must be noticeably longer.
+config :hermes, :confirm_timeout_seconds, 20
+
+# Announcements, in a volume shared with the Asterisk container.
+config :hermes, :sounds_dir, "/var/lib/asterisk/sounds/hermes"
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 

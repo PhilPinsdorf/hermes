@@ -78,7 +78,25 @@ FROM ${RUNNER_IMAGE} AS final
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends libstdc++6 openssl libncurses6 locales ca-certificates curl \
+    sox libsox-fmt-all \
   && rm -rf /var/lib/apt/lists/*
+
+# Text-to-speech for the announcements: Piper with the German "Thorsten" voice.
+# Announcements are generated once when their text changes, never per call.
+ARG PIPER_VERSION=2023.11.14-2
+ARG PIPER_VOICE=de_DE-thorsten-medium
+RUN curl -fsSL "https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/piper_linux_x86_64.tar.gz" \
+    | tar xz -C /opt \
+  && mkdir -p /opt/piper-voices \
+  && curl -fsSL -o "/opt/piper-voices/${PIPER_VOICE}.onnx" \
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/${PIPER_VOICE}.onnx" \
+  && curl -fsSL -o "/opt/piper-voices/${PIPER_VOICE}.onnx.json" \
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/de/de_DE/thorsten/medium/${PIPER_VOICE}.onnx.json" \
+  && echo "Test" | /opt/piper/piper --model "/opt/piper-voices/${PIPER_VOICE}.onnx" --output_file /tmp/check.wav \
+  && rm /tmp/check.wav
+
+ENV PIPER_BIN=/opt/piper/piper \
+    PIPER_VOICE=/opt/piper-voices/de_DE-thorsten-medium.onnx
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \

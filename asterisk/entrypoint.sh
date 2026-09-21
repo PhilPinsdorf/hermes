@@ -55,6 +55,11 @@ export FRITZBOX_HOST FRITZBOX_SIP_USER FRITZBOX_SIP_PASSWORD SIP_BIND_ADDRESS \
 vars='$FRITZBOX_HOST $FRITZBOX_SIP_USER $FRITZBOX_SIP_PASSWORD $SIP_BIND_ADDRESS
 $ARI_BIND_ADDRESS $ARI_USER $ARI_PASSWORD $HERMES_CALL_MODE $RTP_START $RTP_END'
 
+# The app container (different user) writes announcements into this volume.
+sounds_dir=/var/lib/asterisk/sounds/hermes
+mkdir -p "$sounds_dir" 2>/dev/null || true
+chmod 0777 "$sounds_dir" 2>/dev/null || true
+
 umask 077
 for template in /etc/asterisk/templates/*.conf; do
   envsubst "$vars" <"$template" >"/etc/asterisk/$(basename "$template")"

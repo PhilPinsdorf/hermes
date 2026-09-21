@@ -93,4 +93,38 @@ defmodule HermesWeb.DashboardLiveTest do
       refute has_element?(lv, "#setup-checklist")
     end
   end
+
+  describe "PBX status" do
+    setup do
+      previous = Hermes.Ari.status()
+      on_exit(fn -> Hermes.Ari.put_status(previous) end)
+      :ok
+    end
+
+    test "shows when Asterisk is not connected", %{conn: conn} do
+      Hermes.Ari.put_status(:disconnected)
+      {:ok, lv, _html} = live(conn, ~p"/")
+
+      assert has_element?(lv, "#pbx-status", "Telefonanlage getrennt")
+      assert has_element?(lv, "#pbx-status", "nimmt Hermes keine Anrufe an")
+    end
+
+    test "updates live when the connection comes up", %{conn: conn} do
+      Hermes.Ari.put_status(:disconnected)
+      {:ok, lv, _html} = live(conn, ~p"/")
+
+      Hermes.Ari.put_status(:connected)
+
+      assert render_async_until(lv, "Telefonanlage verbunden")
+    end
+  end
+
+  # The status arrives via PubSub, so the LiveView needs a moment to re-render.
+  defp render_async_until(lv, text, attempts \\ 50) do
+    cond do
+      render(lv) =~ text -> true
+      attempts == 0 -> flunk("#{text} did not appear")
+      true -> Process.sleep(10) && render_async_until(lv, text, attempts - 1)
+    end
+  end
 end

@@ -55,6 +55,13 @@ defmodule Hermes.DirectoryTest do
     end
   end
 
+  describe "internal extensions" do
+    test "a person may be an extension of the Fritz!Box" do
+      assert {:ok, person} = Directory.create_person(%{name: "Büro", phone_e164: "**621"})
+      assert person.phone_e164 == "**621"
+    end
+  end
+
   describe "list_people/0" do
     test "orders by position, then name" do
       c = person_fixture(name: "Carla", position: 0)

@@ -68,6 +68,8 @@ defmodule Hermes.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:tz, "~> 0.28"},
+      {:fresh, "~> 0.4.4"},
+      {:mox, "~> 1.3", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

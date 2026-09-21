@@ -90,3 +90,7 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Announcements are written locally in development; export ARI_URL / ARI_PASSWORD
+# to drive a real Asterisk from `mix phx.server`.
+config :hermes, :sounds_dir, Path.expand("../tmp/sounds", __DIR__)

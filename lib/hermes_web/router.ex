@@ -57,6 +57,8 @@ defmodule HermesWeb.Router do
       live "/schedule/shifts/:id/edit", ScheduleLive, :edit
       live "/schedule/overrides", OverrideLive, :index
 
+      live "/calls", CallLive.Index, :index
+
       live "/people", PersonLive.Index, :index
       live "/people/new", PersonLive.Form, :new
       live "/people/:id/edit", PersonLive.Form, :edit
@@ -70,6 +72,7 @@ defmodule HermesWeb.Router do
     end
 
     get "/settings/contact.vcf", ContactController, :show
+    get "/settings/announcements/:name", AnnouncementController, :show
     post "/users/update-password", UserSessionController, :update_password
   end
 

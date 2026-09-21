@@ -23,6 +23,10 @@ defmodule HermesWeb.PersonLive.Form do
           autocomplete="off"
           required
         />
+        <p class="text-sm text-base-content/70 -mt-1 mb-2">
+          Auch eine interne Nebenstelle der Fritz!Box ist möglich, z. B. <code>**621</code>
+          für ein Tischtelefon oder ein Softphone im selben Netz.
+        </p>
         <.input
           field={@form[:ring_timeout_seconds]}
           type="number"

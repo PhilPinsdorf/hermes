@@ -3,6 +3,8 @@ defmodule HermesWeb.SettingsLive do
 
   alias Hermes.Directory.PhoneNumber
   alias Hermes.Settings
+  alias Hermes.Sounds
+  alias Hermes.Speech
 
   @impl true
   def render(assigns) do
@@ -85,6 +87,115 @@ defmodule HermesWeb.SettingsLive do
 
       <div class="divider" />
 
+      <section id="announcements">
+        <h2 class="text-lg font-semibold">Ansagen</h2>
+        <p class="text-sm text-base-content/70 mt-1 mb-3">
+          <%= if @speech_available? do %>
+            Die Texte werden nach dem Speichern automatisch vorgelesen und als Ansage
+            hinterlegt. Alternativ lässt sich je Ansage eine eigene Aufnahme hochladen.
+          <% else %>
+            Auf diesem System ist keine Sprachausgabe installiert, deshalb bleiben die
+            mitgelieferten Ansagen aktiv. Eigene Aufnahmen lassen sich trotzdem hochladen.
+          <% end %>
+        </p>
+
+        <div :for={name <- Sounds.names()} id={"announcement-#{name}"} class="mb-6">
+          <h3 class="font-semibold">{announcement_title(name)}</h3>
+          <p class="text-sm text-base-content/70 mb-1">{announcement_hint(name)}</p>
+
+          <.form for={@form} id={"text-form-#{name}"} phx-submit="save_text" phx-change="validate">
+            <input type="hidden" name="name" value={name} />
+            <.input
+              field={@form[Sounds.text_field(name)]}
+              type="textarea"
+              label="Text"
+              placeholder={Sounds.default_text(name)}
+              disabled={Sounds.uploaded?(name)}
+            />
+            <div class="flex flex-wrap items-center gap-2">
+              <.button :if={!Sounds.uploaded?(name)} variant="primary" phx-disable-with="Speichere...">
+                Text speichern
+              </.button>
+              <audio
+                id={"player-#{name}"}
+                controls
+                preload="none"
+                class="h-8"
+                src={~p"/settings/announcements/#{name}?v=#{@audio_version}"}
+              >
+              </audio>
+              <span :if={Sounds.uploaded?(name)} class="badge badge-info">eigene Aufnahme</span>
+              <button
+                :if={Sounds.uploaded?(name)}
+                type="button"
+                phx-click="reset_announcement"
+                phx-value-name={name}
+                class="btn btn-sm btn-ghost"
+              >
+                Eigene Aufnahme entfernen
+              </button>
+            </div>
+          </.form>
+
+          <form
+            id={"upload-form-#{name}"}
+            phx-submit="upload_announcement"
+            phx-change="validate_upload"
+            class="mt-2"
+          >
+            <input type="hidden" name="name" value={name} />
+            <div class="flex flex-wrap items-center gap-2">
+              <.live_file_input upload={@uploads[name]} class="file-input file-input-sm" />
+              <.button phx-disable-with="Lade hoch...">Eigene Aufnahme hochladen</.button>
+            </div>
+            <p :for={entry <- @uploads[name].entries} class="text-sm text-error">
+              {Enum.map_join(upload_errors(@uploads[name], entry), ", ", &upload_error/1)}
+            </p>
+          </form>
+        </div>
+
+        <.form for={@form} id="next-shift-form" phx-submit="save" phx-change="validate">
+          <.input
+            field={@form[:announce_next_shift]}
+            type="checkbox"
+            label="In der Ansage sagen, ab wann wieder jemand erreichbar ist"
+          />
+          <p class="text-sm text-base-content/70 -mt-1">
+            Ergänzt die Ansage um einen Satz wie „Ab morgen um 8 Uhr sind wir wieder erreichbar“,
+            berechnet aus dem Wochenplan.
+          </p>
+        </.form>
+      </section>
+
+      <div class="divider" />
+
+      <section id="retention">
+        <h2 class="text-lg font-semibold">Anrufprotokoll</h2>
+        <.form for={@form} id="retention-form" phx-submit="save" phx-change="validate">
+          <.input
+            field={@form[:call_log_retention_days]}
+            type="number"
+            label="Anrufe aufbewahren (Tage)"
+            min="1"
+            max="3650"
+            required
+          />
+          <.input
+            field={@form[:call_log_anonymize_after_days]}
+            type="number"
+            label="Anrufernummern schon vorher entfernen (Tage, leer = nie)"
+            min="0"
+          />
+          <p class="text-sm text-base-content/70 -mt-1 mb-2">
+            Telefonnummern sind personenbezogene Daten. Ältere Einträge werden täglich
+            automatisch gelöscht; die Statistik bleibt dabei erhalten.
+          </p>
+          <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
+        </.form>
+      </section>
+
+      <div class="divider" />
+
       <section id="vcard">
         <h2 class="text-lg font-semibold">Kontakt für alle Handys</h2>
         <%= if @setting.clip_number do %>
@@ -114,7 +225,10 @@ defmodule HermesWeb.SettingsLive do
      socket
      |> assign(:page_title, "Einstellungen")
      |> assign(:setting, setting)
-     |> assign(:form, to_form(Settings.change(setting)))}
+     |> assign(:speech_available?, Speech.available?())
+     |> assign_audio_version()
+     |> assign(:form, to_form(Settings.change(setting)))
+     |> allow_announcement_uploads()}
   end
 
   @impl true
@@ -123,19 +237,95 @@ defmodule HermesWeb.SettingsLive do
     {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
   end
 
+  def handle_event("save_text", %{"name" => name, "setting" => params}, socket) do
+    name = String.to_existing_atom(name)
+    field = Sounds.text_field(name)
+    message = "Ansage #{announcement_title(name)}: Text gespeichert."
+    save(socket, Map.take(params, [to_string(field)]), message)
+  end
+
+  def handle_event("validate_upload", _params, socket), do: {:noreply, socket}
+
+  def handle_event("upload_announcement", %{"name" => name}, socket) do
+    name = String.to_existing_atom(name)
+
+    results =
+      consume_uploaded_entries(socket, name, fn %{path: path}, _entry ->
+        {:ok, Sounds.install_upload(name, path)}
+      end)
+
+    case results do
+      [:ok] ->
+        {:noreply,
+         socket |> assign_audio_version() |> put_flash(:info, "Eigene Aufnahme übernommen.")}
+
+      [{:error, reason}] ->
+        {:noreply,
+         put_flash(socket, :error, "Aufnahme konnte nicht übernommen werden: #{inspect(reason)}")}
+
+      [] ->
+        {:noreply, put_flash(socket, :error, "Bitte zuerst eine Datei auswählen.")}
+    end
+  end
+
+  def handle_event("reset_announcement", %{"name" => name}, socket) do
+    name |> String.to_existing_atom() |> Sounds.reset()
+
+    {:noreply,
+     socket
+     |> assign_audio_version()
+     |> put_flash(:info, "Eigene Aufnahme entfernt, der Text gilt wieder.")}
+  end
+
   def handle_event("save", %{"setting" => params}, socket) do
+    save(socket, params, "Einstellungen gespeichert.")
+  end
+
+  # One upload per announcement, so each file input has its own id.
+  defp allow_announcement_uploads(socket) do
+    Enum.reduce(Sounds.names(), socket, fn name, socket ->
+      allow_upload(socket, name, accept: ~w(audio/*), max_entries: 1, max_file_size: 10_000_000)
+    end)
+  end
+
+  # Announcements keep their URL, so the player needs a hint when the audio
+  # behind it changed.
+  defp assign_audio_version(socket) do
+    assign(socket, :audio_version, System.system_time(:second))
+  end
+
+  defp save(socket, params, message) do
     case Settings.update(params) do
       {:ok, setting} ->
         {:noreply,
          socket
          |> assign(:setting, setting)
          |> assign(:form, to_form(Settings.change(setting)))
-         |> put_flash(:info, "Einstellungen gespeichert.")}
+         |> assign_audio_version()
+         |> put_flash(:info, message)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
+
+  defp announcement_title(:no_one_on_duty), do: "Niemand erreichbar"
+  defp announcement_title(:all_busy), do: "Alle im Gespräch"
+  defp announcement_title(:confirm), do: "Bestätigung auf dem Handy"
+
+  defp announcement_hint(:no_one_on_duty),
+    do: "Hört der Anrufer, wenn niemand Dienst hat oder niemand annimmt."
+
+  defp announcement_hint(:all_busy),
+    do: "Hört der Anrufer, wenn alle Diensthabenden gerade im Gespräch sind."
+
+  defp announcement_hint(:confirm),
+    do: "Hört nur die angerufene Person. Sie muss die Tasten 1, 2 und 3 erklären."
+
+  defp upload_error(:too_large), do: "Datei ist zu groß (max. 10 MB)"
+  defp upload_error(:not_accepted), do: "Dateiformat wird nicht unterstützt"
+  defp upload_error(:too_many_files), do: "Bitte nur eine Datei"
+  defp upload_error(error), do: to_string(error)
 
   # Mirrors the channel guard of the call engine: incoming leg + more than one
   # outgoing leg only fit when the line allows at least 3 concurrent calls.

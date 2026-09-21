@@ -30,7 +30,8 @@ defmodule Hermes.Directory.Person do
     |> validate_required([:name, :phone_e164])
     |> validate_length(:name, max: 100)
     |> validate_length(:notes, max: 2000)
-    |> PhoneNumber.validate_change(:phone_e164)
+    # A desk phone or softphone on the same Fritz!Box may take calls too.
+    |> PhoneNumber.validate_change(:phone_e164, allow_internal: true)
     |> validate_number(:position, greater_than_or_equal_to: 0)
     |> validate_number(:ring_timeout_seconds,
       greater_than_or_equal_to: 5,

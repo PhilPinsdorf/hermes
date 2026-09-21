@@ -78,4 +78,71 @@ defmodule HermesWeb.SettingsLiveTest do
 
     refute html =~ ~s(id="simultaneous-hint")
   end
+
+  describe "announcements" do
+    test "offers a player and a text field per announcement", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      for name <- Hermes.Sounds.names() do
+        assert has_element?(lv, "#player-#{name}")
+        assert has_element?(lv, "#text-form-#{name}")
+      end
+    end
+
+    test "the player is served inline, not as a download", %{conn: conn} do
+      {:ok, _} = Hermes.Sounds.install_defaults()
+
+      conn = get(conn, ~p"/settings/announcements/confirm")
+
+      assert response(conn, 200)
+      assert get_resp_header(conn, "content-type") |> hd() =~ "audio/wav"
+      assert get_resp_header(conn, "content-disposition") == ["inline"]
+    end
+
+    test "an unknown announcement leads back to the settings", %{conn: conn} do
+      conn = get(conn, ~p"/settings/announcements/does-not-exist")
+      assert redirected_to(conn) == ~p"/settings"
+    end
+
+    test "saving a text only changes that one text", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      lv
+      |> form("#text-form-confirm", setting: %{text_confirm: "Bitte die 1 drücken."})
+      |> render_submit()
+
+      setting = Hermes.Settings.get()
+      assert setting.text_confirm == "Bitte die 1 drücken."
+      assert setting.text_all_busy == nil
+    end
+  end
+
+  describe "call log retention" do
+    test "can be configured", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      lv
+      |> form("#retention-form",
+        setting: %{call_log_retention_days: 30, call_log_anonymize_after_days: 7}
+      )
+      |> render_submit()
+
+      setting = Hermes.Settings.get()
+      assert setting.call_log_retention_days == 30
+      assert setting.call_log_anonymize_after_days == 7
+    end
+
+    test "anonymizing later than deleting is rejected", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      html =
+        lv
+        |> form("#retention-form",
+          setting: %{call_log_retention_days: 30, call_log_anonymize_after_days: 30}
+        )
+        |> render_submit()
+
+      assert html =~ "muss kleiner als die Aufbewahrungsdauer sein"
+    end
+  end
 end

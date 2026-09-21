@@ -1,6 +1,9 @@
 defmodule HermesWeb.DashboardLive do
   use HermesWeb, :live_view
 
+  alias Hermes.Ari
+  alias Hermes.Calls
+  alias Hermes.Calls.CallSupervisor
   alias Hermes.Directory
   alias Hermes.Schedule
   alias Hermes.Settings
@@ -13,6 +16,28 @@ defmodule HermesWeb.DashboardLive do
       <.header>
         Übersicht
       </.header>
+
+      <section id="pbx-status" class="flex flex-wrap items-center gap-3 text-sm">
+        <span class={[
+          "badge gap-1",
+          (@ari_status == :connected && "badge-success") || "badge-error"
+        ]}>
+          <.icon
+            name={if @ari_status == :connected, do: "hero-signal", else: "hero-signal-slash"}
+            class="size-4"
+          />
+          {if @ari_status == :connected,
+            do: "Telefonanlage verbunden",
+            else: "Telefonanlage getrennt"}
+        </span>
+        <span :if={@active_calls > 0} id="active-calls" class="badge badge-info gap-1">
+          <.icon name="hero-phone" class="size-4" />
+          {running_calls_label(@active_calls)}
+        </span>
+        <span :if={@ari_status != :connected} class="text-base-content/70">
+          Ohne Verbindung nimmt Hermes keine Anrufe an.
+        </span>
+      </section>
 
       <section id="on-duty" class="card bg-base-200">
         <div class="card-body">
@@ -101,6 +126,8 @@ defmodule HermesWeb.DashboardLive do
     if connected?(socket) do
       Directory.subscribe()
       Schedule.subscribe()
+      Ari.subscribe()
+      Calls.subscribe()
       schedule_tick()
     end
 
@@ -112,6 +139,14 @@ defmodule HermesWeb.DashboardLive do
   end
 
   @impl true
+  def handle_info({:ari_status, status}, socket),
+    do: {:noreply, assign(socket, :ari_status, status)}
+
+  def handle_info({event, _id}, socket)
+      when event in [:call_started, :call_ended, :call_bridged, :call_logged] do
+    {:noreply, assign(socket, :active_calls, CallSupervisor.count_calls())}
+  end
+
   def handle_info({:person_changed, _}, socket), do: {:noreply, load(socket)}
   def handle_info({:schedule_changed, _}, socket), do: {:noreply, load(socket)}
 
@@ -123,6 +158,9 @@ defmodule HermesWeb.DashboardLive do
 
   defp schedule_tick, do: Process.send_after(self(), :tick, :timer.seconds(30))
 
+  defp running_calls_label(1), do: "1 laufender Anruf"
+  defp running_calls_label(count), do: "#{count} laufende Anrufe"
+
   defp load(socket) do
     people = Directory.list_people()
     shift_count = length(Schedule.list_shifts())
@@ -131,6 +169,8 @@ defmodule HermesWeb.DashboardLive do
 
     socket
     |> assign(:status, Schedule.status())
+    |> assign(:ari_status, Ari.status())
+    |> assign(:active_calls, CallSupervisor.count_calls())
     |> assign(:active_people, active_people)
     |> assign(:shift_count, shift_count)
     |> assign(:setup_done?, setting.clip_number != nil and active_people > 0 and shift_count > 0)

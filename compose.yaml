@@ -37,6 +37,9 @@ services:
       ARI_PASSWORD: ${ARI_PASSWORD:?run bin/setup first}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      # Announcements: written by Hermes, played by Asterisk (same path in both).
+      - sounds:/var/lib/asterisk/sounds/hermes
     ports:
       - "${HTTP_BIND:-127.0.0.1}:4000:4000"
 
@@ -57,6 +60,9 @@ services:
       ARI_USER: ${ARI_USER:-hermes}
       ARI_PASSWORD: ${ARI_PASSWORD:?run bin/setup first}
       HERMES_CALL_MODE: ${HERMES_CALL_MODE:-test}
+    volumes:
+      - sounds:/var/lib/asterisk/sounds/hermes
 
 volumes:
   pgdata:
+  sounds:

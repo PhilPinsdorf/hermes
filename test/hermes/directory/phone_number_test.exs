@@ -72,6 +72,31 @@ defmodule Hermes.Directory.PhoneNumberTest do
     end
   end
 
+  describe "internal Fritz!Box extensions" do
+    test "are rejected by default" do
+      assert PhoneNumber.normalize("**621") == {:error, :internal_not_allowed}
+    end
+
+    test "are accepted where allowed, and kept as typed" do
+      assert PhoneNumber.normalize("**621", allow_internal: true) == {:ok, "**621"}
+      assert PhoneNumber.normalize(" **1 ", allow_internal: true) == {:ok, "**1"}
+    end
+
+    test "must look like an extension" do
+      assert PhoneNumber.normalize("**", allow_internal: true) == {:error, :invalid_characters}
+
+      assert PhoneNumber.normalize("**62345", allow_internal: true) ==
+               {:error, :invalid_characters}
+
+      assert PhoneNumber.normalize("*621", allow_internal: true) == {:error, :invalid_characters}
+    end
+
+    test "are dialed and displayed as such" do
+      assert PhoneNumber.to_dialable("**621") == "**621"
+      assert PhoneNumber.format("**621") == "**621 (intern)"
+    end
+  end
+
   describe "error_message/1" do
     test "has a German message for every error reason" do
       for reason <- [:blank, :invalid_characters, :missing_prefix, :invalid] do

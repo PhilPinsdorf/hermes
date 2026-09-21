@@ -73,13 +73,40 @@ grünem Punkt („registriert“).
 
 ## 4. Leitungstest
 
-Mit `HERMES_CALL_MODE=test` nimmt Hermes jeden Anruf selbst an und spielt eine
-englische Testansage („Congratulations …“) – ganz ohne Weboberfläche und Wochenplan.
+Normalbetrieb ist `HERMES_CALL_MODE=stasis`: Anrufe gehen an Hermes.
 
-Vom Handy die Festnetznummer anrufen → die Ansage muss zu hören sein.
+Kommt kein Anruf durch und ist unklar, ob es an der Leitung oder an Hermes liegt, hilft
+`HERMES_CALL_MODE=test` in `.env` plus `docker compose up -d asterisk`: Dann nimmt Asterisk
+jeden Anruf selbst an und spielt eine englische Testansage („Congratulations …“) – ganz ohne
+App, Datenbank und Wochenplan. Danach wieder auf `stasis` zurückstellen.
 
-Danach `HERMES_CALL_MODE=stasis` setzen und `docker compose up -d` – ab dann übernimmt
-Hermes die Anrufe (ab Meilenstein M4).
+## 5. Testtelefon ohne zweites Handy (Softphone)
+
+Zum Ausprobieren der Weiterleitung braucht es zwei Anschlüsse: einen zum Anrufen und einen
+als diensthabendes Telefon. Ruft man vom selben Handy an, das eingetragen ist, ist dieses
+besetzt, und die Mobilbox des Providers hebt ab – Hermes eskaliert dann korrekt, aber
+verbunden wird nichts.
+
+Ein Softphone auf dem PC löst das:
+
+1. In der Fritz!Box ein **zweites IP-Telefon** anlegen (wie in Schritt 1, Name z. B.
+   `Testphone`). Unter *Ankommende Anrufe* **keine** Rufnummer auswählen – das Gerät soll
+   nur intern erreichbar sein.
+2. Die interne Rufnummer notieren, die die Fritz!Box dem Gerät gibt, z. B. `**621`
+   (*Telefonie → Telefoniegeräte*, Spalte „interne Rufnummer").
+3. Am PC ein Softphone installieren, etwa [Linphone](https://www.linphone.org/) oder Zoiper,
+   und dort eintragen:
+   - Benutzername und Kennwort des neuen IP-Telefons
+   - Domain/Registrar: `192.168.178.1` (die Fritz!Box)
+   - Transport: UDP
+4. In Hermes unter **Personen** eine Person mit der Nummer `**621` anlegen und sie im
+   Wochenplan eintragen.
+
+Dann vom Handy die Festnetznummer anrufen: Das Softphone klingelt, dort die Bestätigungs-
+ansage anhören und die **1** drücken – das Gespräch steht.
+
+Interne Nebenstellen sind kein reiner Testbehelf: Auch ein Tischtelefon im Büro lässt sich
+so in die Bereitschaft aufnehmen.
 
 ## Fehlersuche
 

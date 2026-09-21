@@ -27,9 +27,17 @@ defmodule Hermes.Settings do
   Updates the settings.
   """
   def update(attrs) do
-    get()
-    |> Setting.changeset(attrs)
-    |> Repo.update()
+    result =
+      get()
+      |> Setting.changeset(attrs)
+      |> Repo.update()
+
+    with {:ok, setting} <- result do
+      # Texts may have changed: rebuild the audio in the background.
+      Hermes.Sounds.refresh_async(setting)
+    end
+
+    result
   end
 
   @doc """

@@ -45,6 +45,7 @@ defmodule HermesWeb.Layouts do
         <nav :if={@current_scope && @current_scope.user} class="hidden sm:flex gap-1">
           <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
           <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
+          <.link navigate={~p"/calls"} class="btn btn-ghost btn-sm">Anrufe</.link>
           <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
           <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
           <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
@@ -68,6 +69,7 @@ defmodule HermesWeb.Layouts do
     >
       <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
       <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
+      <.link navigate={~p"/calls"} class="btn btn-ghost btn-sm">Anrufe</.link>
       <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
       <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
       <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>

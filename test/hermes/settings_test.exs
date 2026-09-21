@@ -37,6 +37,11 @@ defmodule Hermes.SettingsTest do
       assert setting.clip_number == "+49301234567"
     end
 
+    test "the displayed number may not be an internal extension" do
+      assert {:error, changeset} = Settings.update(%{clip_number: "**621"})
+      assert errors_on(changeset).clip_number == ["darf keine interne Nebenstelle sein"]
+    end
+
     test "validates ranges" do
       assert {:error, changeset} =
                Settings.update(%{

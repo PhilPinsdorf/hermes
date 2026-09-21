@@ -11,11 +11,18 @@ defmodule Hermes.Directory.PhoneNumber do
 
   A number without a leading `0` or `+` (a local number without area code)
   is rejected, since we cannot know which area it belongs to.
+
+  Internal Fritz!Box extensions (`**621`) are accepted where they make sense —
+  a desk phone or softphone on the same Fritz!Box can take calls too. They are
+  stored as typed and are only allowed where `allow_internal: true` is passed.
   """
 
   @default_country_code "49"
 
   @e164 ~r/^\+[1-9]\d{6,14}$/
+
+  # Internal extension of a Fritz!Box, e.g. **621
+  @internal ~r/^\*\*\d{1,4}$/
 
   @doc """
   Normalizes `input` to E.164.
@@ -32,11 +39,13 @@ defmodule Hermes.Directory.PhoneNumber do
       {:error, :missing_prefix}
 
   """
-  @spec normalize(String.t() | nil) ::
+  @spec normalize(String.t() | nil, keyword()) ::
           {:ok, String.t()} | {:error, :blank | :invalid_characters | :missing_prefix | :invalid}
-  def normalize(nil), do: {:error, :blank}
+  def normalize(input, opts \\ [])
 
-  def normalize(input) when is_binary(input) do
+  def normalize(nil, _opts), do: {:error, :blank}
+
+  def normalize(input, opts) when is_binary(input) do
     cleaned =
       input
       |> String.trim()
@@ -45,9 +54,19 @@ defmodule Hermes.Directory.PhoneNumber do
       |> String.replace(~r/[\s\-\/\.\(\)]/u, "")
 
     cond do
-      cleaned == "" -> {:error, :blank}
-      not Regex.match?(~r/^\+?\d+$/, cleaned) -> {:error, :invalid_characters}
-      true -> cleaned |> to_international() |> validate()
+      cleaned == "" ->
+        {:error, :blank}
+
+      Regex.match?(@internal, cleaned) ->
+        if Keyword.get(opts, :allow_internal, false),
+          do: {:ok, cleaned},
+          else: {:error, :internal_not_allowed}
+
+      not Regex.match?(~r/^\+?\d+$/, cleaned) ->
+        {:error, :invalid_characters}
+
+      true ->
+        cleaned |> to_international() |> validate()
     end
   end
 
@@ -77,17 +96,20 @@ defmodule Hermes.Directory.PhoneNumber do
 
   def error_message(:invalid), do: "ist keine gültige Telefonnummer"
 
+  def error_message(:internal_not_allowed),
+    do: "darf keine interne Nebenstelle sein"
+
   @doc """
   Ecto changeset helper: normalizes `field` in place or adds an error.
   """
-  @spec validate_change(Ecto.Changeset.t(), atom()) :: Ecto.Changeset.t()
-  def validate_change(changeset, field) do
+  @spec validate_change(Ecto.Changeset.t(), atom(), keyword()) :: Ecto.Changeset.t()
+  def validate_change(changeset, field, opts \\ []) do
     case Ecto.Changeset.get_change(changeset, field) do
       nil ->
         changeset
 
       value ->
-        case normalize(value) do
+        case normalize(value, opts) do
           {:ok, e164} -> Ecto.Changeset.put_change(changeset, field, e164)
           {:error, reason} -> Ecto.Changeset.add_error(changeset, field, error_message(reason))
         end
@@ -95,11 +117,33 @@ defmodule Hermes.Directory.PhoneNumber do
   end
 
   @doc """
+  Turns an E.164 number into the form a phone would dial through the Fritz!Box:
+  German numbers nationally (`+491711234567` → `01711234567`), everything else
+  with the international prefix `00`.
+
+  ## Examples
+
+      iex> to_dialable("+491711234567")
+      "01711234567"
+
+      iex> to_dialable("+436641234567")
+      "00436641234567"
+
+  """
+  @spec to_dialable(String.t()) :: String.t()
+  # Internal extensions are dialed exactly as they are.
+  def to_dialable("**" <> _ = extension), do: extension
+  def to_dialable("+" <> @default_country_code <> rest), do: "0" <> rest
+  def to_dialable("+" <> rest), do: "00" <> rest
+  def to_dialable(number), do: number
+
+  @doc """
   Formats an E.164 number for display, e.g. `+49 171 1234567`.
   Only the country code is split off; German area codes vary in length.
   """
   @spec format(String.t() | nil) :: String.t()
   def format(nil), do: ""
+  def format("**" <> _ = extension), do: extension <> " (intern)"
   def format("+49" <> rest), do: "+49 " <> rest
   def format(number), do: number
 end

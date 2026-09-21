@@ -21,6 +21,14 @@ defmodule Hermes.Settings.Setting do
     # Concurrent external calls the line allows; incoming and outgoing legs both count.
     field :max_external_channels, :integer, default: 2
     field :busy_policy, Ecto.Enum, values: @busy_policies, default: :announce
+    # Call log retention (phone numbers are personal data).
+    field :call_log_retention_days, :integer, default: 90
+    field :call_log_anonymize_after_days, :integer
+    # Announcement texts; empty means "use the default text".
+    field :text_no_one_on_duty, :string
+    field :text_all_busy, :string
+    field :text_confirm, :string
+    field :announce_next_shift, :boolean, default: true
 
     timestamps(type: :utc_datetime)
   end
@@ -37,7 +45,13 @@ defmodule Hermes.Settings.Setting do
       :ring_timeout_seconds,
       :ring_strategy,
       :max_external_channels,
-      :busy_policy
+      :busy_policy,
+      :call_log_retention_days,
+      :call_log_anonymize_after_days,
+      :text_no_one_on_duty,
+      :text_all_busy,
+      :text_confirm,
+      :announce_next_shift
     ])
     |> update_change(:clip_display_name, &String.trim/1)
     |> validate_required([
@@ -45,7 +59,8 @@ defmodule Hermes.Settings.Setting do
       :ring_timeout_seconds,
       :ring_strategy,
       :max_external_channels,
-      :busy_policy
+      :busy_policy,
+      :call_log_retention_days
     ])
     |> validate_length(:clip_display_name, max: 60)
     |> PhoneNumber.validate_change(:clip_number)
@@ -57,5 +72,30 @@ defmodule Hermes.Settings.Setting do
       greater_than_or_equal_to: 2,
       less_than_or_equal_to: 30
     )
+    |> validate_number(:call_log_retention_days,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 3650
+    )
+    |> validate_number(:call_log_anonymize_after_days, greater_than_or_equal_to: 0)
+    |> validate_length(:text_no_one_on_duty, max: 500)
+    |> validate_length(:text_all_busy, max: 500)
+    |> validate_length(:text_confirm, max: 500)
+    |> validate_anonymize_before_deletion()
+  end
+
+  # Anonymizing later than deleting would never happen.
+  defp validate_anonymize_before_deletion(changeset) do
+    retention = get_field(changeset, :call_log_retention_days)
+    anonymize = get_field(changeset, :call_log_anonymize_after_days)
+
+    if retention && anonymize && anonymize >= retention do
+      add_error(
+        changeset,
+        :call_log_anonymize_after_days,
+        "muss kleiner als die Aufbewahrungsdauer sein"
+      )
+    else
+      changeset
+    end
   end
 end

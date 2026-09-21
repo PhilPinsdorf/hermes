@@ -42,3 +42,10 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Calls are tested against a mock, never a real Asterisk.
+config :hermes, :ari_client, Hermes.Ari.ClientMock
+config :hermes, :sounds_dir, Path.expand("../tmp/test_sounds", __DIR__)
+
+# No announcements are generated in tests (no speech synthesis, no background work).
+config :hermes, :generate_sounds, false

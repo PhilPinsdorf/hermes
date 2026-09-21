@@ -27,6 +27,23 @@ if time_zone = System.get_env("HERMES_TIME_ZONE") do
   config :hermes, :time_zone, time_zone
 end
 
+if System.get_env("SOUNDS_DIR") do
+  config :hermes, :sounds_dir, System.get_env("SOUNDS_DIR")
+end
+
+# ARI: configured as soon as a password is present, so development can talk to
+# a real Asterisk by exporting ARI_PASSWORD. Tests never connect.
+ari_password = System.get_env("ARI_PASSWORD")
+
+if config_env() != :test and ari_password do
+  config :hermes, Hermes.Ari,
+    base_url: System.get_env("ARI_URL", "http://127.0.0.1:8088"),
+    username: System.get_env("ARI_USER", "hermes"),
+    password: ari_password,
+    app: System.get_env("ARI_APP", "hermes"),
+    enabled: System.get_env("ARI_ENABLED", "true") == "true"
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
