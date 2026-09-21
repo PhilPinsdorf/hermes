@@ -55,6 +55,12 @@ defmodule Hermes.Ari.Client do
   @doc "Destroys a bridge."
   @callback destroy_bridge(bridge_id :: String.t()) :: :ok | {:error, reason}
 
+  @doc """
+  State of an endpoint, e.g. `PJSIP/fritzbox`. Asterisk reports `"online"`
+  while the peer answers the regular checks.
+  """
+  @callback endpoint(name :: String.t()) :: {:ok, map()} | {:error, reason}
+
   @doc "Basic information about the connected Asterisk (used for diagnostics)."
   @callback asterisk_info() :: {:ok, map()} | {:error, reason}
 end

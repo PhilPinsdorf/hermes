@@ -7,6 +7,7 @@ defmodule HermesWeb.DashboardLive do
   alias Hermes.Directory
   alias Hermes.Schedule
   alias Hermes.Settings
+  alias Hermes.Telephony.Monitor
   alias HermesWeb.ScheduleGrid
 
   @impl true
@@ -30,12 +31,24 @@ defmodule HermesWeb.DashboardLive do
             do: "Telefonanlage verbunden",
             else: "Telefonanlage getrennt"}
         </span>
+        <span
+          :if={@ari_status == :connected}
+          id="trunk-status"
+          class={["badge gap-1", (@telephony.trunk == :online && "badge-success") || "badge-error"]}
+        >
+          <.icon name="hero-phone-arrow-up-right" class="size-4" />
+          {if @telephony.trunk == :online, do: "Amt erreichbar", else: "Amt nicht erreichbar"}
+        </span>
         <span :if={@active_calls > 0} id="active-calls" class="badge badge-info gap-1">
           <.icon name="hero-phone" class="size-4" />
           {running_calls_label(@active_calls)}
         </span>
-        <span :if={@ari_status != :connected} class="text-base-content/70">
-          Ohne Verbindung nimmt Hermes keine Anrufe an.
+        <span :if={!@telephony.ready?} class="text-base-content/70">
+          <%= if @ari_status != :connected do %>
+            Ohne Verbindung zur Telefonanlage nimmt Hermes keine Anrufe an.
+          <% else %>
+            Die Fritz!Box antwortet nicht – siehe <code>docs/fritzbox.md</code>.
+          <% end %>
         </span>
       </section>
 
@@ -128,6 +141,7 @@ defmodule HermesWeb.DashboardLive do
       Schedule.subscribe()
       Ari.subscribe()
       Calls.subscribe()
+      Monitor.subscribe()
       schedule_tick()
     end
 
@@ -141,6 +155,9 @@ defmodule HermesWeb.DashboardLive do
   @impl true
   def handle_info({:ari_status, status}, socket),
     do: {:noreply, assign(socket, :ari_status, status)}
+
+  def handle_info({:telephony_status, status}, socket),
+    do: {:noreply, assign(socket, :telephony, status)}
 
   def handle_info({event, _id}, socket)
       when event in [:call_started, :call_ended, :call_bridged, :call_logged] do
@@ -170,6 +187,7 @@ defmodule HermesWeb.DashboardLive do
     socket
     |> assign(:status, Schedule.status())
     |> assign(:ari_status, Ari.status())
+    |> assign(:telephony, Monitor.status())
     |> assign(:active_calls, CallSupervisor.count_calls())
     |> assign(:active_people, active_people)
     |> assign(:shift_count, shift_count)

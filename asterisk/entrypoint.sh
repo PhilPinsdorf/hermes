@@ -68,4 +68,12 @@ done
 log "Fritz!Box $FRITZBOX_HOST als $FRITZBOX_SIP_USER, SIP auf $SIP_BIND_ADDRESS:5060," \
   "ARI auf $ARI_BIND_ADDRESS:8088, RTP $RTP_START-$RTP_END, Modus $HERMES_CALL_MODE"
 
+# Asterisk only starts checking a statically configured contact (the Fritz!Box)
+# after a reload; without this it stays "NonQual" forever and Hermes would
+# report the line as unreachable.
+(
+  sleep 10
+  asterisk -rx "pjsip reload" >/dev/null 2>&1 || true
+) &
+
 exec asterisk -f

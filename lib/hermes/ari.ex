@@ -59,6 +59,9 @@ defmodule Hermes.Ari do
   def destroy_bridge(bridge_id), do: client().destroy_bridge(bridge_id)
 
   @impl true
+  def endpoint(name), do: client().endpoint(name)
+
+  @impl true
   def asterisk_info, do: client().asterisk_info()
 
   ## Connection state

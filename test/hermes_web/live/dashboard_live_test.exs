@@ -101,6 +101,28 @@ defmodule HermesWeb.DashboardLiveTest do
       :ok
     end
 
+    test "shows when the line cannot be reached", %{conn: conn} do
+      Hermes.Ari.put_status(:connected)
+      {:ok, lv, _html} = live(conn, ~p"/")
+
+      # Without a monitor check the trunk is unknown, which counts as not ready.
+      assert has_element?(lv, "#trunk-status", "Amt nicht erreichbar")
+      assert has_element?(lv, "#pbx-status", "Fritz!Box antwortet nicht")
+    end
+
+    test "reacts to the monitor reporting a change", %{conn: conn} do
+      Hermes.Ari.put_status(:connected)
+      {:ok, lv, _html} = live(conn, ~p"/")
+
+      Phoenix.PubSub.broadcast(
+        Hermes.PubSub,
+        "telephony",
+        {:telephony_status, %{ready?: true, ari: :connected, trunk: :online, since: nil}}
+      )
+
+      assert render(lv) =~ "Amt erreichbar"
+    end
+
     test "shows when Asterisk is not connected", %{conn: conn} do
       Hermes.Ari.put_status(:disconnected)
       {:ok, lv, _html} = live(conn, ~p"/")

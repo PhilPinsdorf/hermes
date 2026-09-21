@@ -23,6 +23,8 @@ defmodule Hermes.Application do
       Hermes.Calls.CallSupervisor,
       # Deletes old call log entries once a day
       Hermes.Calls.Retention,
+      # Watches ARI and the trunk, so a broken line does not go unnoticed
+      {Hermes.Telephony.Monitor, Application.get_env(:hermes, :telephony_monitor, [])},
       # Connects to Asterisk; :ignore without credentials (tests, dev)
       Hermes.Ari.EventSocket,
       # Start to serve requests, typically the last entry

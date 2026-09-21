@@ -97,6 +97,14 @@ defmodule Hermes.Ari.Client.Http do
   end
 
   @impl true
+  def endpoint(name) do
+    case String.split(name, "/", parts: 2) do
+      [tech, resource] -> request(:get, "/endpoints/#{tech}/#{resource}")
+      _ -> {:error, {:invalid_endpoint, name}}
+    end
+  end
+
+  @impl true
   def asterisk_info do
     request(:get, "/asterisk/info")
   end

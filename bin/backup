@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Writes a backup of the Hermes database (and the announcements) to ./backups.
+#
+#   bin/backup              # backup, keeping the last 14
+#   BACKUP_KEEP=30 bin/backup
+#
+# For a nightly backup (crontab -e), the full path matters:
+#   15 3 * * * cd /opt/hermes && bin/backup >> /var/log/hermes-backup.log 2>&1
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+keep=${BACKUP_KEEP:-14}
+dir=${BACKUP_DIR:-backups}
+stamp=$(date +%Y-%m-%d_%H%M%S)
+mkdir -p "$dir"
+
+compose() { docker compose "$@"; }
+
+db_file="$dir/hermes-db-$stamp.sql.gz"
+compose exec -T db pg_dump --clean --if-exists -U hermes hermes | gzip >"$db_file"
+echo "database  -> $db_file ($(du -h "$db_file" | cut -f1))"
+
+# Announcements: quickly regenerated from the texts, but own recordings are not.
+sounds_file="$dir/hermes-sounds-$stamp.tar.gz"
+compose exec -T app tar cz -C /var/lib/asterisk/sounds hermes >"$sounds_file" 2>/dev/null \
+  && echo "sounds    -> $sounds_file ($(du -h "$sounds_file" | cut -f1))" \
+  || { rm -f "$sounds_file"; echo "sounds    -> skipped (container not running)"; }
+
+# .env holds the secrets; it is NOT backed up here, it belongs in a password manager.
+
+ls -1t "$dir"/hermes-db-*.sql.gz 2>/dev/null | tail -n +$((keep + 1)) | xargs -r rm --
+ls -1t "$dir"/hermes-sounds-*.tar.gz 2>/dev/null | tail -n +$((keep + 1)) | xargs -r rm --
+
+echo "done, keeping the newest $keep backups in $dir"

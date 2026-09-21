@@ -49,3 +49,6 @@ config :hermes, :sounds_dir, Path.expand("../tmp/test_sounds", __DIR__)
 
 # No announcements are generated in tests (no speech synthesis, no background work).
 config :hermes, :generate_sounds, false
+
+# Tests drive their own monitor; the application's one stays quiet.
+config :hermes, :telephony_monitor, check_on_start: false, interval: 3_600_000

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Restores a database backup written by bin/backup.
+#
+#   bin/restore backups/hermes-db-2026-09-21_031500.sql.gz
+#
+# Everything currently in the database is replaced. Announcements are restored
+# separately (see docs/rollout.md).
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+file=${1:-}
+if [[ -z "$file" || ! -f "$file" ]]; then
+  echo "usage: $0 BACKUP.sql.gz" >&2
+  exit 64
+fi
+
+read -r -p "Replace the current database with $file? [nein/ja] " answer
+[[ "$answer" == "ja" ]] || { echo "aborted"; exit 1; }
+
+# The app must not write while we restore.
+docker compose stop app
+gunzip -c "$file" | docker compose exec -T db psql -U hermes -d hermes
+docker compose start app
+
+echo "restored from $file"
