@@ -19,7 +19,17 @@ defmodule Hermes.Telephony.Trunk.FritzBox do
   end
 
   @impl true
-  def caller_id, do: Settings.get().clip_number
+  def caller_id do
+    # Deliberately nothing: the Fritz!Box decides which number goes out, based
+    # on the IP phone's "Ausgehende Anrufe" setting, and it recognises the call
+    # by the SIP user name (from_user in pjsip.conf). Putting a number in the
+    # From header instead makes the Fritz!Box send the call anonymously — the
+    # called person then sees "unbekannt" instead of the landline number.
+    #
+    # `clip_number` in the settings therefore only describes what the Fritz!Box
+    # sends; it is what the vCard hands out.
+    nil
+  end
 
   @impl true
   def max_concurrent_legs, do: Settings.get().max_external_channels

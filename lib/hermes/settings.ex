@@ -48,6 +48,28 @@ defmodule Hermes.Settings do
   end
 
   @doc """
+  File name for the vCard, derived from the display name: everyone recognises
+  "bereitschaft.vcf" in their downloads, "hermes-kontakt.vcf" says nothing.
+  """
+  def vcard_filename(%Setting{clip_display_name: name}) do
+    slug =
+      name
+      |> to_string()
+      |> String.downcase()
+      |> String.replace("ä", "ae")
+      |> String.replace("ö", "oe")
+      |> String.replace("ü", "ue")
+      |> String.replace("ß", "ss")
+      |> String.replace(~r/[^a-z0-9]+/u, "-")
+      |> String.trim("-")
+
+    case slug do
+      "" -> "kontakt.vcf"
+      slug -> slug <> ".vcf"
+    end
+  end
+
+  @doc """
   Builds the vCard every on-duty person imports once, so forwarded calls show
   `clip_display_name` on their phone. Returns `{:error, :no_clip_number}` until
   the number is configured.

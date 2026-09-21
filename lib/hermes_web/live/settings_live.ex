@@ -23,6 +23,11 @@ defmodule HermesWeb.SettingsLive do
           label="Angezeigte Rufnummer (Festnetznummer)"
           placeholder="030 1234567"
         />
+        <p class="text-sm text-base-content/70 -mt-1 mb-2">
+          Welche Nummer tatsächlich beim Angerufenen erscheint, bestimmt die Fritz!Box
+          (beim IP-Telefon unter „Ausgehende Anrufe“). Hier dieselbe Nummer eintragen –
+          sie landet in der Kontakt-Datei, die alle einmal speichern.
+        </p>
         <.input
           field={@form[:clip_display_name]}
           type="text"

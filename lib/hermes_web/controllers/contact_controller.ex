@@ -7,10 +7,12 @@ defmodule HermesWeb.ContactController do
   Serves the one global vCard that every on-duty person imports.
   """
   def show(conn, _params) do
-    case Settings.vcard(Settings.get()) do
+    setting = Settings.get()
+
+    case Settings.vcard(setting) do
       {:ok, vcard} ->
         send_download(conn, {:binary, vcard},
-          filename: "hermes-kontakt.vcf",
+          filename: Settings.vcard_filename(setting),
           content_type: "text/vcard"
         )
 

@@ -16,11 +16,11 @@ defmodule Hermes.TelephonyTest do
     assert Telephony.endpoint_for("**621") == "PJSIP/**621@fritzbox"
   end
 
-  test "the caller id is the configured CLIP number" do
-    assert Telephony.caller_id() == nil
-
+  test "the Fritz!Box decides the caller id itself" do
+    # Setting a number in the From header makes the Fritz!Box send the call
+    # anonymously, so Hermes deliberately sets none.
     {:ok, _} = Settings.update(%{clip_number: "030 1234567"})
-    assert Telephony.caller_id() == "+49301234567"
+    assert Telephony.caller_id() == nil
   end
 
   test "the channel budget comes from the settings" do

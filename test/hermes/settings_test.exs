@@ -68,6 +68,24 @@ defmodule Hermes.SettingsTest do
     end
   end
 
+  describe "vcard_filename/1" do
+    test "follows the display name" do
+      assert Settings.vcard_filename(%Setting{clip_display_name: "Bereitschaft"}) ==
+               "bereitschaft.vcf"
+
+      assert Settings.vcard_filename(%Setting{clip_display_name: "Notdienst Süd"}) ==
+               "notdienst-sued.vcf"
+
+      assert Settings.vcard_filename(%Setting{clip_display_name: "Praxis Dr. Müller"}) ==
+               "praxis-dr-mueller.vcf"
+    end
+
+    test "falls back when the name has nothing usable" do
+      assert Settings.vcard_filename(%Setting{clip_display_name: "***"}) == "kontakt.vcf"
+      assert Settings.vcard_filename(%Setting{clip_display_name: nil}) == "kontakt.vcf"
+    end
+  end
+
   describe "vcard/1" do
     test "needs a CLIP number" do
       assert Settings.vcard(%Setting{clip_number: nil}) == {:error, :no_clip_number}

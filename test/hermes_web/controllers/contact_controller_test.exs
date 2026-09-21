@@ -12,7 +12,15 @@ defmodule HermesWeb.ContactControllerTest do
 
     assert response(conn, 200) =~ "TEL;TYPE=WORK,VOICE:+49301234567"
     assert get_resp_header(conn, "content-type") |> hd() =~ "text/vcard"
-    assert get_resp_header(conn, "content-disposition") |> hd() =~ "hermes-kontakt.vcf"
+    assert get_resp_header(conn, "content-disposition") |> hd() =~ "bereitschaft.vcf"
+  end
+
+  test "the file is named after the display name", %{conn: conn} do
+    {:ok, _} = Settings.update(%{clip_number: "030 1234567", clip_display_name: "Notdienst Süd"})
+
+    conn = get(conn, ~p"/settings/contact.vcf")
+
+    assert get_resp_header(conn, "content-disposition") |> hd() =~ "notdienst-sued.vcf"
   end
 
   test "redirects to settings while no CLIP number is set", %{conn: conn} do

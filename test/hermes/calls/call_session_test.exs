@@ -198,12 +198,15 @@ defmodule Hermes.Calls.CallSessionTest do
       %{anna: anna}
     end
 
-    test "rings the caller and calls the mobile with the configured number", %{anna: anna} do
+    test "rings the caller and calls the mobile", %{anna: anna} do
       {pid, _ref} = start_call()
 
       assert_receive {:ring, @caller_channel}
-      leg = assert_dialed(anna)
-      assert_receive {:set_variable, ^leg, "CALLERID(num)", "+49301234567"}
+      assert_dialed(anna)
+
+      # The Fritz!Box decides the caller id; overriding it would make the call
+      # go out anonymously.
+      refute_received {:set_variable, _, "CALLERID(num)", _}
 
       # The caller is not answered while we dial: no charges, no silence.
       refute_received {:answer, @caller_channel}
