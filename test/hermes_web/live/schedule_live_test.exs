@@ -47,6 +47,43 @@ defmodule HermesWeb.ScheduleLiveTest do
     end
   end
 
+  describe "priority" do
+    test "the rules are explained above the plan", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#priority-rules", "kleinere Zahl zuerst")
+      assert has_element?(lv, "#priority-rules", "entscheidet das Los")
+      assert has_element?(lv, "#priority-rules", "Ausnahmen")
+    end
+
+    test "stands on a line of its own, in the grid and in the day list", %{conn: conn} do
+      person = person_fixture(name: "Anna")
+      shift = shift_fixture(person_id: person.id, day_of_week: 3, position: 2)
+
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#shift-#{shift.id}-3", "Priorität 2")
+      assert has_element?(lv, "#day-list-3", "Priorität 2")
+    end
+
+    test "a shift continuing from the night before repeats no priority", %{conn: conn} do
+      person = person_fixture(name: "Nacht")
+
+      shift_fixture(
+        person_id: person.id,
+        day_of_week: 2,
+        starts_at: ~T[22:00:00],
+        ends_at: ~T[06:00:00],
+        position: 3
+      )
+
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#day-list-2", "Priorität 3")
+      refute has_element?(lv, "#day-list-3", "Priorität 3")
+    end
+  end
+
   describe "legend" do
     test "shows names as chips, not as uppercase status tags", %{conn: conn} do
       person_fixture(name: "Anna Muster")

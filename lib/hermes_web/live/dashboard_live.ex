@@ -101,7 +101,7 @@ defmodule HermesWeb.DashboardLive do
               </li>
             </ol>
             <p :if={length(@status.on_duty) > 1} class="text-sm text-base-content/60">
-              Ungefähr in dieser Reihenfolge wird angerufen – bei gleicher Reihenfolge im
+              Ungefähr in dieser Reihenfolge wird angerufen – bei gleicher Priorität im
               Wochenplan entscheidet bei jedem Anruf das Los.
             </p>
         <% end %>
