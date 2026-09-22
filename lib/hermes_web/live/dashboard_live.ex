@@ -101,7 +101,8 @@ defmodule HermesWeb.DashboardLive do
               </li>
             </ol>
             <p :if={length(@status.on_duty) > 1} class="text-sm text-base-content/60">
-              In dieser Reihenfolge wird angerufen.
+              Ungefähr in dieser Reihenfolge wird angerufen – bei gleicher Reihenfolge im
+              Wochenplan entscheidet bei jedem Anruf das Los.
             </p>
         <% end %>
 
@@ -187,7 +188,7 @@ defmodule HermesWeb.DashboardLive do
       <section :if={@recent_calls != []} id="recent-calls" class="card card-body gap-3">
         <div class="flex items-baseline justify-between gap-2">
           <h2 class="font-semibold">Letzte Anrufe</h2>
-          <.link navigate={~p"/calls"} class="link text-sm">alle</.link>
+          <.link navigate={~p"/calls"} class="link text-sm">Alle</.link>
         </div>
 
         <ul class="divide-y divide-base-300">

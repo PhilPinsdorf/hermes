@@ -79,6 +79,14 @@ ist nicht nötig.
 1. Im Cloudflare-Dashboard unter *Zero Trust → Networks → Tunnels* einen Tunnel
    anlegen, als Public Hostname die gewünschte Adresse eintragen und als
    Service `http://app:4000`.
+
+   > **`app` ist ein Docker-Name, kein Rechnername.** Er wird nur von
+   > Containern im selben Compose-Netz aufgelöst — deshalb muss `cloudflared`
+   > über das Profil unten mitlaufen. Wer den Tunnel stattdessen nach Anleitung
+   > des Dashboards als Dienst auf dem Rechner installiert (`cloudflared
+   > service install …`) oder als einzelnen `docker run`-Container startet, für
+   > den existiert `app` nicht: Cloudflare antwortet dann mit *Bad Gateway* und
+   > „Origin DNS error" (Fehler 1016). Siehe „Wenn etwas nicht geht".
 2. Den angezeigten Token in `.env` eintragen:
 
 ```sh
@@ -119,6 +127,22 @@ dann zusätzlich `HTTPS_REDIRECT=false` setzen, womit das Umleiten dem Proxy
 > Internet.** Sie dürfen nur aus dem lokalen Netz erreichbar sein.
 
 ## 5. Starten
+
+> **Vorher: Es darf keine zweite Instanz mit denselben Zugangsdaten laufen.**
+> Die Fritz!Box lässt ein IP-Telefon mehrfach anmelden und schickt eingehende
+> Anrufe an **alle** Anmeldungen gleichzeitig. Wer zuerst annimmt, bekommt das
+> Gespräch; alle anderen erhalten ein `CANCEL` mit `text="Call completed
+> elsewhere"` und legen auf. Das trifft jede Kopie der `.env` — den
+> Entwicklungsrechner, einen alten Testaufbau, ein Softphone mit denselben
+> Daten. Vor dem Start dort abschalten:
+>
+> ```sh
+> docker compose down        # auf jedem anderen Rechner, der die .env hat
+> ```
+>
+> Wer parallel entwickeln muss, legt sich in der Fritz!Box ein **eigenes
+> IP-Telefon** mit eigenen Zugangsdaten an, ohne Rufnummer unter „Ankommende
+> Anrufe" — siehe [fritzbox.md](fritzbox.md), Abschnitt 5.
 
 ```sh
 docker compose pull
@@ -297,4 +321,111 @@ Wer ohne Registry arbeitet, nimmt weiterhin `docker compose up -d --build`.
 | Anruf kommt an, aber kein Ton | RTP-Ports 10000–10200/UDP aus dem lokalen Netz erreichbar? |
 | Handy klingelt nicht | Nummer der Person prüfen; unter **Anrufe** steht das Ergebnis je Versuch |
 | Anrufer landet auf einer Mailbox | Sollte nicht passieren — Ergebnis des Anrufs unter **Anrufe** prüfen und melden |
+| Anruf bricht nach Millisekunden ab | Läuft dieselbe Installation noch woanders? Siehe unten |
 | Nichts hilft | `HERMES_CALL_MODE=test` in `.env`, `docker compose up -d asterisk`: Kommt die Testansage, liegt es an Hermes, sonst an der Leitung |
+
+### Anrufe brechen sofort ab („Call completed elsewhere")
+
+Im Anrufprotokoll steht als Ergebnis **aufgelegt**, und im Log liegen zwischen
+„calling …" und „caller hung up" nur Millisekunden:
+
+```
+15:33:10.877 [info] call 1790091190.2: calling Max
+15:33:10.890 [info] call 1790091190.2: caller hung up
+```
+
+So schnell legt kein Mensch auf. Der SIP-Mitschnitt zeigt, wer abräumt:
+
+```sh
+docker compose exec asterisk asterisk -rx "pjsip set logger on"
+# Testanruf, danach:
+docker compose logs asterisk --since 3m | grep -B5 -A10 -iE "^CANCEL|Reason:"
+docker compose exec asterisk asterisk -rx "pjsip set logger off"
+```
+
+Steht dort
+
+```
+CSeq: 39 CANCEL
+Reason: SIP; cause=200; text="Call completed elsewhere"
+```
+
+dann hat **ein anderes Gerät den Anruf angenommen**. Zwei Ursachen:
+
+1. **Eine zweite Hermes-Instanz mit derselben `.env`** — ein
+   Entwicklungsrechner, ein alter Testaufbau, eine zweite Installation. Die
+   Fritz!Box verteilt den Anruf an beide Anmeldungen; die andere Instanz hat
+   meist keinen Wochenplan, ist deshalb sofort bei „niemand im Dienst", nimmt
+   an und spielt ihre Ansage — daher die Millisekunden. Auf dem anderen
+   Rechner `docker compose down`, dann einige Minuten warten, bis die
+   Anmeldung an der Fritz!Box abgelaufen ist.
+2. **Ein anderes Telefon an derselben Rufnummer** — DECT-Mobilteil, analoges
+   Telefon oder der Anrufbeantworter der Fritz!Box mit 0 Sekunden Verzögerung.
+   Unter *Telefonie → Telefoniegeräte* bei allen Geräten außer Hermes die
+   Rufnummer unter „Ankommende Anrufe" abwählen.
+
+Welche der beiden es war, steht in der Fritz!Box unter *Telefonie → Anrufe*:
+Dort ist vermerkt, welches Gerät den Anruf angenommen hat.
+
+### Cloudflare zeigt „Bad Gateway" / „Origin DNS error"
+
+`cloudflared` kommt nicht an Hermes heran. Fast immer läuft es nicht im selben
+Docker-Netz wie `app`. Erst feststellen, wo es überhaupt läuft:
+
+```sh
+cd /opt/hermes
+docker compose ps -a | grep cloudflared    # im Stack?
+systemctl status cloudflared               # oder als Dienst auf dem Rechner?
+docker ps --filter ancestor=cloudflare/cloudflared --format '{{.Names}}\t{{.Networks}}'
+```
+
+Was `cloudflared` tatsächlich versucht, steht in seinem Log — die Zeile
+„Updated to new configuration" zeigt die Service-URL, die es aus dem Dashboard
+geholt hat:
+
+```sh
+docker compose logs cloudflared | grep -E "Updated to new configuration|originService"
+```
+
+**`service` steht auf `https://app:4000`** — der häufigste Fehler, weil das
+Dashboard den Typ gern auf HTTPS vorbelegt. `cloudflared` beginnt dann einen
+TLS-Handshake, Hermes spricht im Container aber nur Klartext-HTTP, liest das
+ClientHello als kaputte Anfrage und trennt. Im Log:
+
+```
+originService=https://app:4000 … read: connection reset by peer
+```
+
+Beheben: im Public Hostname den Service-Typ auf **HTTP** stellen. Der Tunnel
+übernimmt das von selbst, ein Neustart ist nicht nötig.
+
+**Im Stack** (`hermes-cloudflared-1`, Netz `hermes_default`) — dann ist
+`http://app:4000` richtig. Prüfen, ob der Name aus dem Netz heraus antwortet:
+
+```sh
+docker run --rm --network hermes_default curlimages/curl \
+  -s -o /dev/null -w '%{http_code}\n' http://app:4000/healthz
+```
+
+Erwartet wird **301** (bei `PHX_URL_SCHEME=https`) beziehungsweise **200** (bei
+`http`). Beides heißt: `app` ist erreichbar und antwortet. Die 301 ist kein
+Fehler — curl schickt kein `X-Forwarded-Proto: https`, also leitet Hermes auf
+die öffentliche Adresse um; der Tunnel schickt den Header und bekommt die
+Seite. Nur `connection refused` oder gar keine Antwort wären ein Problem.
+
+**Nicht im Stack** — dann kennt `cloudflared` den Namen `app` nicht. Zwei Wege:
+
+- Den Tunnel in den Stack holen: den Host-Dienst abschalten
+  (`sudo systemctl disable --now cloudflared`) beziehungsweise den einzelnen
+  Container entfernen, `TUNNEL_TOKEN` in `.env` eintragen und
+  `docker compose --profile tunnel up -d` starten. Das ist der Weg, den dieses
+  Projekt vorsieht.
+- Oder den Tunnel lassen, wo er ist, und die Service-URL anpassen: bei einem
+  Dienst auf dem Rechner `http://localhost:4000`, bei einem eigenen Container
+  entweder `--network hermes_default` mitgeben und bei `http://app:4000`
+  bleiben, oder die LAN-Adresse des Rechners eintragen — dann muss `HTTP_BIND`
+  in `.env` auf diese Adresse (oder `0.0.0.0`) stehen statt auf `127.0.0.1`.
+
+Dass `curl http://app:4000/healthz` **auf dem Rechner selbst** nicht geht, ist
+übrigens kein Fehler: `app` ist ein Docker-interner Name. Von außerhalb der
+Container prüft man mit `curl -s localhost:4000/healthz`.

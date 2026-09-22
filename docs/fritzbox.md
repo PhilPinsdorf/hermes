@@ -34,7 +34,18 @@ Danach unter **Telefonie → Telefoniegeräte** beim neuen Gerät prüfen:
 > **Andere Telefone an derselben Nummer:** Klingeln weitere Geräte auf dieselbe
 > Festnetznummer (DECT, analoge Telefone), klingeln sie parallel zu Hermes. Wer zuerst
 > abnimmt, hat das Gespräch. Soll nur Hermes annehmen, bei den anderen Geräten unter
-> „Ankommende Anrufe“ diese Nummer abwählen.
+> „Ankommende Anrufe“ diese Nummer abwählen. Das gilt auch für den
+> **Anrufbeantworter der Fritz!Box**: Steht seine Verzögerung auf 0 Sekunden,
+> nimmt er sofort ab und Hermes kommt nie zum Zug.
+
+> **Diese Zugangsdaten gehören genau einer Installation.** Die Fritz!Box lässt
+> dasselbe IP-Telefon mehrfach anmelden und verteilt eingehende Anrufe an alle
+> Anmeldungen gleichzeitig — wer zuerst annimmt, gewinnt, alle anderen bekommen
+> ein `CANCEL` mit `text="Call completed elsewhere"`. Läuft also irgendwo noch
+> eine zweite Hermes-Instanz mit derselben `.env`, brechen die Anrufe beim
+> Kunden nach Millisekunden ab, ohne dass an der Installation selbst etwas
+> falsch wäre. Für Entwicklung und Tests deshalb ein **eigenes IP-Telefon**
+> anlegen, wie in Abschnitt 5 beschrieben.
 
 ## 2. Zugangsdaten in `.env` eintragen
 
@@ -118,6 +129,7 @@ so in die Bereitschaft aufnehmen.
 | Container `asterisk` startet neu, Log „fehlende Einstellungen“ | `FRITZBOX_SIP_USER` / `FRITZBOX_SIP_PASSWORD` fehlen in `.env`. |
 | Registriert, aber Anruf kommt nicht an | In der Fritz!Box beim IP-Telefon „Ankommende Anrufe“ prüfen. Live mitschauen: `docker compose exec asterisk asterisk -rvvv`. |
 | Anruf kommt an, aber keine Ansage zu hören | RTP (UDP 10000–10200) wird von der Host-Firewall blockiert. Die Ports müssen aus dem LAN erreichbar sein. |
+| Anruf bricht nach Millisekunden ab, im Mitschnitt steht `text="Call completed elsewhere"` | Ein anderes Gerät hat den Anruf angenommen: entweder eine zweite Hermes-Instanz mit derselben `.env` (dort `docker compose down`) oder ein Telefon bzw. der Anrufbeantworter an derselben Rufnummer. Wer es war, steht in der Fritz!Box unter *Telefonie → Anrufe*. Ausführlich in [rollout.md](rollout.md), „Wenn etwas nicht geht". |
 
 ## Sicherheit
 

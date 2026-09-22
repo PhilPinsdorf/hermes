@@ -53,6 +53,10 @@ defmodule Hermes.Schedule.ResolverTest do
     instant |> Resolver.on_duty_at(shifts, overrides, @tz) |> Enum.map(& &1.id)
   end
 
+  defp call_order(instant, shifts, overrides \\ []) do
+    instant |> Resolver.call_order(shifts, overrides, @tz) |> Enum.map(& &1.id)
+  end
+
   describe "plain daytime shifts" do
     setup do
       anna = person(1)
@@ -263,6 +267,65 @@ defmodule Hermes.Schedule.ResolverTest do
     end
   end
 
+  describe "call_order/4 rolls ties" do
+    test "people with the same position do not always come in the same order" do
+      people = for id <- 1..4, do: person(id, name: "P#{id}")
+      shifts = for p <- people, do: shift(p, 1, "08:00", "16:00", position: 0)
+      instant = at(@mon, "12:00")
+
+      orders = for _ <- 1..200, into: MapSet.new(), do: call_order(instant, shifts)
+
+      # Four tied people have 24 possible orders; seeing only one in 200 draws
+      # would mean nothing is being rolled at all.
+      assert MapSet.size(orders) > 1
+      assert Enum.all?(orders, &(Enum.sort(&1) == [1, 2, 3, 4]))
+    end
+
+    test "a real position still decides — only the tie is rolled" do
+      first = person(1, name: "Zoe")
+      tied_a = person(2, name: "Anna")
+      tied_b = person(3, name: "Bert")
+
+      shifts = [
+        shift(first, 1, "08:00", "16:00", position: 0),
+        shift(tied_a, 1, "08:00", "16:00", position: 1),
+        shift(tied_b, 1, "08:00", "16:00", position: 1)
+      ]
+
+      for _ <- 1..50 do
+        assert [1 | rest] = call_order(at(@mon, "12:00"), shifts)
+        assert Enum.sort(rest) == [2, 3]
+      end
+    end
+
+    test "added people stay behind the plan however the dice fall" do
+      in_plan = person(1)
+      added_a = person(2)
+      added_b = person(3)
+
+      shifts = [shift(in_plan, 1, "08:00", "16:00")]
+
+      overrides = [
+        override(added_a, :add, "2026-09-14T08:00", "2026-09-14T16:00"),
+        override(added_b, :add, "2026-09-14T08:00", "2026-09-14T16:00")
+      ]
+
+      for _ <- 1..50 do
+        assert [1 | rest] = call_order(at(@mon, "12:00"), shifts, overrides)
+        assert Enum.sort(rest) == [2, 3]
+      end
+    end
+
+    test "the overview stays put while the call order is rolled" do
+      people = for id <- 1..4, do: person(id, name: "P#{id}")
+      shifts = for p <- people, do: shift(p, 1, "08:00", "16:00")
+      instant = at(@mon, "12:00")
+
+      fixed = for _ <- 1..50, into: MapSet.new(), do: on_duty(instant, shifts)
+      assert MapSet.size(fixed) == 1
+    end
+  end
+
   describe "overrides" do
     setup do
       anna = person(1)
@@ -286,12 +349,39 @@ defmodule Hermes.Schedule.ResolverTest do
       assert on_duty(at(Date.add(@mon, 14), "12:00"), shifts, overrides) == [1]
     end
 
-    test "add puts a person on duty, ahead of shift people", %{bert: bert, shifts: shifts} do
+    test "add puts a person on duty, behind the people in the plan",
+         %{bert: bert, shifts: shifts} do
       overrides = [override(bert, :add, "2026-09-14T12:00", "2026-09-14T20:00")]
 
       assert on_duty(at(@mon, "11:00"), shifts, overrides) == [1]
-      assert on_duty(at(@mon, "13:00"), shifts, overrides) == [2, 1]
+      # Anna is in the plan and is asked first; Bert stands in behind her.
+      assert on_duty(at(@mon, "13:00"), shifts, overrides) == [1, 2]
       assert on_duty(at(@mon, "17:00"), shifts, overrides) == [2]
+    end
+
+    test "several added people keep their turn after the plan", %{shifts: shifts} do
+      carla = person(3, name: "Carla")
+      dirk = person(4, name: "Dirk")
+
+      overrides = [
+        override(carla, :add, "2026-09-14T08:00", "2026-09-14T16:00"),
+        override(dirk, :add, "2026-09-14T08:00", "2026-09-14T16:00")
+      ]
+
+      assert [1 | rest] = on_duty(at(@mon, "12:00"), shifts, overrides)
+      assert Enum.sort(rest) == [3, 4]
+    end
+
+    test "someone in the plan and added by an override is rung once, at their plan position",
+         %{anna: anna, bert: bert, shifts: shifts} do
+      overrides = [
+        override(anna, :add, "2026-09-14T08:00", "2026-09-14T16:00"),
+        override(bert, :add, "2026-09-14T08:00", "2026-09-14T16:00")
+      ]
+
+      # Anna is in the plan, so she keeps her place and is not repeated at the
+      # end; Bert only comes from the override.
+      assert on_duty(at(@mon, "12:00"), shifts, overrides) == [1, 2]
     end
 
     test "swap: block one, add another", %{anna: anna, bert: bert, shifts: shifts} do
@@ -376,7 +466,7 @@ defmodule Hermes.Schedule.ResolverTest do
       shifts = [shift(anna, 1, "08:00", "16:00")]
       overrides = [override(bert, :add, "2026-09-14T10:00", "2026-09-14T11:00")]
 
-      assert {dt, [2, 1]} = next(at(@mon, "09:00"), shifts, overrides)
+      assert {dt, [1, 2]} = next(at(@mon, "09:00"), shifts, overrides)
       assert DateTime.to_naive(dt) == ~N[2026-09-14 10:00:00]
     end
 

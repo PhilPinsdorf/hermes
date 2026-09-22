@@ -322,6 +322,62 @@ defmodule Hermes.Calls.CallSessionTest do
     end
   end
 
+  describe "exceptions" do
+    setup do
+      anna = person_fixture(name: "Anna", phone_e164: "0171 1111111")
+      bert = person_fixture(name: "Bert", phone_e164: "0171 2222222")
+      # Only Anna is in the weekly plan; Bert stands in through an override.
+      on_duty(anna)
+      %{anna: anna, bert: bert}
+    end
+
+    defp add_override(person) do
+      now = Hermes.Schedule.local_naive(DateTime.utc_now())
+
+      {:ok, _} =
+        Hermes.Schedule.create_override(%{
+          person_id: person.id,
+          kind: :add,
+          starts_at: NaiveDateTime.add(now, -1, :hour),
+          ends_at: NaiveDateTime.add(now, 1, :hour)
+        })
+    end
+
+    test "somebody added by an exception is rung after the plan",
+         %{anna: anna, bert: bert} do
+      add_override(bert)
+
+      {pid, _ref} = start_call()
+
+      leg_a = assert_dialed(anna)
+      leg_ended(pid, leg_a, 17)
+      assert_dialed(bert)
+    end
+
+    test "somebody in the plan and in an exception is rung once", %{anna: anna, bert: bert} do
+      # Anna is in the plan *and* added by an override — she must not come
+      # round a second time at the end.
+      add_override(anna)
+      add_override(bert)
+
+      {pid, _ref} = start_call()
+
+      leg_a = assert_dialed(anna)
+      leg_ended(pid, leg_a, 17)
+      leg_b = assert_dialed(bert)
+      leg_ended(pid, leg_b, 17)
+
+      # Nobody is left, so the caller gets the announcement instead of Anna
+      # ringing again.
+      assert_receive {:answer, @caller_channel}
+      assert_receive {:play, @caller_channel, _media}
+      refute_received {:create_channel, _endpoint, _id, _args}
+
+      assert %{attempts: attempts} = sync(pid)
+      assert Enum.count(attempts, &(&1.person_id == anna.id)) == 1
+    end
+  end
+
   describe "escalation" do
     setup do
       anna = person_fixture(name: "Anna", phone_e164: "0171 1111111")
@@ -386,6 +442,35 @@ defmodule Hermes.Calls.CallSessionTest do
       assert_dialed(bert)
       assert %{attempts: attempts} = sync(pid)
       assert Enum.any?(attempts, &match?(%{person_id: id, outcome: :busy} when id == anna.id, &1))
+    end
+
+    test "hanging up on the ringing phone escalates immediately", %{anna: anna, bert: bert} do
+      {pid, _ref} = start_call()
+      leg_a = assert_dialed(anna)
+
+      # The red button while it is ringing: the Fritz!Box reports ISDN cause 21.
+      leg_ended(pid, leg_a, 21)
+
+      assert_dialed(bert)
+
+      assert %{attempts: attempts} = sync(pid)
+
+      assert Enum.any?(
+               attempts,
+               &match?(%{person_id: id, outcome: :rejected} when id == anna.id, &1)
+             )
+    end
+
+    test "hanging up after picking up escalates immediately too", %{anna: anna, bert: bert} do
+      {pid, _ref} = start_call()
+      leg_a = assert_dialed(anna)
+
+      # Picked up, heard the announcement, then hung up instead of pressing a
+      # key — normal clearing, cause 16.
+      leg_answered(pid, leg_a)
+      leg_ended(pid, leg_a, 16)
+
+      assert_dialed(bert)
     end
 
     test "after everyone was tried the caller gets the announcement", %{

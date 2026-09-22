@@ -42,7 +42,9 @@ defmodule HermesWeb.ScheduleLive do
             sie zu bearbeiten.
           </span>
           <span class="sm:hidden">Auf eine Schicht tippen, um sie zu bearbeiten.</span>
-          Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter dem Plan.
+          Die Zahl vor dem Namen ist die Reihenfolge: kleiner wird zuerst angerufen, bei
+          gleicher Zahl entscheidet das Los. Einmalige Ausnahmen wie Urlaub oder Tausch
+          stehen unter dem Plan und werden zuletzt gerufen.
         </:subtitle>
         <:actions>
           <div class="flex flex-wrap justify-end gap-2">
@@ -116,6 +118,12 @@ defmodule HermesWeb.ScheduleLive do
                 style={ScheduleGrid.segment_style(seg)}
                 title={shift_title(seg.shift)}
               >
+                <span
+                  class="mr-1 inline-block rounded bg-base-content/15 px-1 font-semibold tabular-nums"
+                  title={"Reihenfolge #{seg.shift.position}"}
+                >
+                  {seg.shift.position}
+                </span>
                 <span class="font-semibold">{seg.shift.person.name}</span>
                 <span :if={!seg.continued?} class="block opacity-70">
                   {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
@@ -163,6 +171,12 @@ defmodule HermesWeb.ScheduleLive do
                   ]}
                   style={ScheduleGrid.person_color_style(seg.shift.person)}
                 >
+                  <span
+                    class="rounded bg-base-content/15 px-1.5 text-sm font-semibold tabular-nums"
+                    title={"Reihenfolge #{seg.shift.position}"}
+                  >
+                    {seg.shift.position}
+                  </span>
                   <span class="font-medium">{seg.shift.person.name}</span>
                   <span class="ml-auto text-sm tabular-nums">
                     {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
@@ -571,7 +585,8 @@ defmodule HermesWeb.ScheduleLive do
 
   defp shift_title(shift) do
     "#{shift.person.name}: #{ScheduleGrid.day_name(shift.day_of_week)} " <>
-      "#{ScheduleGrid.format_time(shift.starts_at)}–#{ScheduleGrid.format_time(shift.ends_at)}"
+      "#{ScheduleGrid.format_time(shift.starts_at)}–#{ScheduleGrid.format_time(shift.ends_at)}" <>
+      ", Reihenfolge #{shift.position}"
   end
 
   # Explains overnight / 24h shifts while the form is being filled in.

@@ -36,6 +36,15 @@ defmodule Hermes.Schedule do
   end
 
   @doc """
+  Who to ring, in the order a call works through them. Unlike `status/1` this
+  rolls the dice between people with the same position, so the same person is
+  not always the first phone to light up. See `Resolver.call_order/4`.
+  """
+  def call_order(at \\ DateTime.utc_now()) do
+    Resolver.call_order(at, list_shifts(), list_overrides_relevant_at(at), time_zone())
+  end
+
+  @doc """
   Loads the plan and returns who is on duty at `at` (default: now) and the
   next change:
 

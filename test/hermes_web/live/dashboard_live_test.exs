@@ -111,7 +111,7 @@ defmodule HermesWeb.DashboardLiveTest do
 
       assert has_element?(lv, "#on-duty-#{anna.id}", "Anna")
       assert has_element?(lv, "#on-duty-#{bert.id}", "Bert")
-      assert render(lv) =~ "In dieser Reihenfolge wird angerufen."
+      assert render(lv) =~ "in dieser Reihenfolge wird angerufen"
     end
 
     test "updates when the plan changes", %{conn: conn} do

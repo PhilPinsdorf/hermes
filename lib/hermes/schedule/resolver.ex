@@ -19,24 +19,52 @@ defmodule Hermes.Schedule.Resolver do
 
   The result is ordered by who should be called first:
 
-    1. people added by an `:add` override (explicit, recent decisions win)
-    2. people from shifts, by `shift.position`
-    3. ties broken by `person.position`, then name
+    1. people from the weekly plan, by `shift.position`
+    2. people added by an `:add` override, after everyone in the plan — an
+       exception is a stand-in, so the roster is asked first
+
+  Someone who is both in the plan and added by an override is called **once**,
+  at their position in the plan — never a second time at the end.
 
   Inactive people and inactive shifts are ignored; a `:block` override removes
-  a person regardless of source. Each person appears at most once.
+  a person regardless of source.
+
+  Two people with the same position are a tie, and who is asked first then
+  depends on the caller:
+
+    * `on_duty_at/4` keeps a fixed order (person position, then name) — the
+      overview and `next_change/5` must not jitter between two renderings
+    * `call_order/4` shuffles the tie, so the same person is not the first to
+      be rung every single time
   """
 
   alias Hermes.Directory.Person
   alias Hermes.Schedule.{Override, Shift}
 
   @doc """
-  Returns the people on duty at `at`, in call order.
+  Returns the people on duty at `at` in a fixed order — for the overview and
+  for `next_change/5`, which compares two lists and must not see a change that
+  is only a reshuffle.
 
   `shifts` and `overrides` must have `:person` preloaded.
   """
   @spec on_duty_at(DateTime.t(), [Shift.t()], [Override.t()], String.t()) :: [Person.t()]
   def on_duty_at(%DateTime{} = at, shifts, overrides, time_zone) do
+    at |> ranked(shifts, overrides, time_zone) |> settle(:fixed)
+  end
+
+  @doc """
+  The same people, but ties are rolled: among equal positions nobody is
+  permanently first. This is the order a call rings through.
+  """
+  @spec call_order(DateTime.t(), [Shift.t()], [Override.t()], String.t()) :: [Person.t()]
+  def call_order(%DateTime{} = at, shifts, overrides, time_zone) do
+    at |> ranked(shifts, overrides, time_zone) |> settle(:rolled)
+  end
+
+  # Everyone on duty, each tagged with {source, position}: source 0 is the
+  # weekly plan, source 1 an `:add` override, which comes after it.
+  defp ranked(at, shifts, overrides, time_zone) do
     local = at |> DateTime.shift_zone!(time_zone) |> DateTime.to_naive()
 
     blocked =
@@ -45,26 +73,37 @@ defmodule Hermes.Schedule.Resolver do
           into: MapSet.new(),
           do: o.person_id
 
-    added =
-      for %Override{kind: :add} = o <- overrides,
-          override_covers?(o, local),
-          do: {{0, 0}, o.person}
-
     from_shifts =
       for %Shift{active: true} = s <- shifts,
           shift_covers?(s, local),
-          do: {{1, s.position}, s.person}
+          do: {{0, s.position}, s.person}
 
-    (added ++ from_shifts)
-    |> Enum.filter(fn {_rank, person} ->
+    added =
+      for %Override{kind: :add} = o <- overrides,
+          override_covers?(o, local),
+          do: {{1, 0}, o.person}
+
+    Enum.filter(from_shifts ++ added, fn {_rank, person} ->
       person.active and not MapSet.member?(blocked, person.id)
     end)
-    |> Enum.sort_by(fn {{source, position}, person} ->
-      {source, position, person.position, person.name}
-    end)
+  end
+
+  # Sorting by rank is stable, so shuffling beforehand only reorders people who
+  # share a rank. Deduplication comes last and therefore keeps the best rank —
+  # that is what stops someone in both the plan and an override being rung
+  # twice.
+  defp settle(ranked, tie) do
+    ranked
+    |> pre_sort(tie)
+    |> Enum.sort_by(fn {rank, _person} -> rank end)
     |> Enum.uniq_by(fn {_rank, person} -> person.id end)
     |> Enum.map(fn {_rank, person} -> person end)
   end
+
+  defp pre_sort(ranked, :rolled), do: Enum.shuffle(ranked)
+
+  defp pre_sort(ranked, :fixed),
+    do: Enum.sort_by(ranked, fn {_rank, person} -> {person.position, person.name} end)
 
   @doc """
   Returns `{instant, people}` for the next moment after `at` at which the

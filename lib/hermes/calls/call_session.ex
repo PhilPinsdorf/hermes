@@ -94,7 +94,9 @@ defmodule Hermes.Calls.CallSession do
   @impl true
   def handle_continue(:resolve, state) do
     busy = MapSet.new(Occupancy.busy_person_ids())
-    on_duty = Schedule.status().on_duty
+    # call_order, not status: ties are rolled per call, and the next change is
+    # of no interest here.
+    on_duty = Schedule.call_order()
     available = Enum.reject(on_duty, &MapSet.member?(busy, &1.id))
 
     # The caller's own channel occupies one of the line's channels.
