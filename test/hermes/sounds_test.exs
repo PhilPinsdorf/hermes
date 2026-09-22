@@ -135,6 +135,20 @@ defmodule Hermes.SoundsTest do
       assert text =~ Sounds.text(:no_one_on_duty, setting)
     end
 
+    test "names a weekday without slipping an extra preposition in",
+         %{setting: setting} do
+      today = DateTime.utc_now() |> Hermes.Schedule.local_naive() |> NaiveDateTime.to_date()
+
+      for days <- 2..6 do
+        date = Date.add(today, days)
+        at = DateTime.new!(date, ~T[08:00:00], Hermes.Schedule.time_zone())
+        weekday = HermesWeb.ScheduleGrid.day_name(Date.day_of_week(date))
+
+        assert Sounds.next_shift_text(at, setting) =~
+                 "Ab #{weekday} um 8 Uhr sind wir wieder erreichbar."
+      end
+    end
+
     test "says the minutes when there are any", %{setting: setting} do
       today = DateTime.utc_now() |> Hermes.Schedule.local_naive() |> NaiveDateTime.to_date()
       at = DateTime.new!(today, ~T[17:30:00], Hermes.Schedule.time_zone())

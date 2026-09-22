@@ -291,7 +291,9 @@ defmodule Hermes.Sounds do
       case Date.diff(NaiveDateTime.to_date(local), today) do
         0 -> "heute"
         1 -> "morgen"
-        diff when diff in 2..6 -> "am " <> ScheduleGrid.day_name(Date.day_of_week(local))
+        # No "am": the sentence already begins with "Ab", and "Ab am Mittwoch"
+        # is what the caller would hear.
+        diff when diff in 2..6 -> ScheduleGrid.day_name(Date.day_of_week(local))
         _ -> nil
       end
 
