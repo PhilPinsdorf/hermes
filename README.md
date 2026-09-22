@@ -38,9 +38,15 @@ wie die Fritz!Box.
 git clone <repository> hermes && cd hermes
 bin/setup                          # legt .env mit frischen Passwörtern an
 # Fritz!Box-Zugangsdaten in .env eintragen, siehe docs/fritzbox.md
-docker compose up -d --build
+docker compose pull                # fertige Images aus der GitHub-Registry
+docker compose up -d
 docker compose exec -it app bin/create_admin du@example.com
 ```
+
+Die Images baut GitHub bei jedem Push nach `main`; der Rechner beim Kunden
+lädt sie nur herunter. Wer aus dem Arbeitsstand bauen will, nimmt statt der
+beiden Zeilen `docker compose up -d --build` — dann dauert der erste Start
+einige Minuten, weil Asterisk aus dem Quellcode entsteht.
 
 Danach die Weboberfläche öffnen (standardmäßig <http://localhost:4000>) und
 der Reihe nach einrichten: angezeigte Rufnummer, Personen, Wochenplan. Die
@@ -64,6 +70,7 @@ Fritz!Box.
 ## Betrieb
 
 ```sh
+docker compose pull && docker compose up -d    # auf die neueste Version
 docker compose ps                              # läuft alles?
 docker compose logs -f app                     # Anrufe mitverfolgen
 docker compose exec asterisk asterisk -rx "pjsip show registrations"

@@ -1,5 +1,15 @@
 # Production stack, one instance per customer. Configure via .env (see .env.example, bin/setup).
 # Fritz!Box setup: docs/fritzbox.md
+#
+# The images are built by .github/workflows/images.yml and published to the
+# GitHub package registry, so a rollout pulls them instead of compiling
+# Asterisk on the customer's machine:
+#
+#   docker compose pull && docker compose up -d
+#
+# `build:` is kept so `docker compose up -d --build` still builds from this
+# checkout — for a change that is not published yet, or without a registry.
+# HERMES_TAG pins a version (`latest` follows the main branch).
 
 services:
   db:
@@ -19,7 +29,7 @@ services:
 
   app:
     build: .
-    image: hermes:latest
+    image: ghcr.io/philpinsdorf/hermes/app:${HERMES_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -48,7 +58,7 @@ services:
   # Docker bridge only (see asterisk/entrypoint.sh).
   asterisk:
     build: ./asterisk
-    image: hermes-asterisk:latest
+    image: ghcr.io/philpinsdorf/hermes/asterisk:${HERMES_TAG:-latest}
     restart: unless-stopped
     network_mode: host
     environment:

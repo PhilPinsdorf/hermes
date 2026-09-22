@@ -121,12 +121,37 @@ dann zusätzlich `HTTPS_REDIRECT=false` setzen, womit das Umleiten dem Proxy
 ## 5. Starten
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 docker compose ps
 ```
 
-Der erste Build dauert einige Minuten: Asterisk wird aus dem Quellcode gebaut
-und die Sprachausgabe heruntergeladen.
+Die Images baut GitHub bei jedem Push nach `main` und legt sie in der
+GitHub-Registry ab (siehe `.github/workflows/images.yml`). Der Rechner beim
+Kunden lädt sie nur noch herunter, statt Asterisk selbst aus dem Quellcode zu
+übersetzen — das spart je nach Maschine zehn Minuten und einiges an RAM.
+
+> **Sind die Pakete privat**, meldet `docker compose pull` „denied". Dann
+> entweder in GitHub unter *Packages → Package settings* die Sichtbarkeit auf
+> öffentlich stellen, oder sich auf dem Rechner einmal anmelden — mit einem
+> Token, das nur `read:packages` darf:
+>
+> ```sh
+> echo "$GITHUB_TOKEN" | docker login ghcr.io -u DEIN-GITHUB-NAME --password-stdin
+> ```
+
+Welche Version läuft, steht als `HERMES_TAG` in `.env`: `latest` folgt dem
+Stand von `main`, ein Release-Tag (`v1.2.3`) bleibt stehen, bis man ihn ändert.
+Beim Kunden ist ein fester Tag die ruhigere Wahl.
+
+**Ohne Registry**, etwa für eine Änderung, die noch nicht veröffentlicht ist:
+
+```sh
+docker compose up -d --build
+```
+
+Dann wird lokal gebaut; der erste Durchlauf dauert einige Minuten, weil
+Asterisk aus dem Quellcode entsteht und die Sprachausgabe geladen wird.
 
 Prüfen:
 
@@ -251,9 +276,16 @@ Fritz!Box und Datenbank stimmen dann nicht mehr.
 cd /opt/hermes
 bin/backup
 git pull
-bin/setup                     # ergänzt neue Einträge in .env, ändert keine vorhandenen
-docker compose up -d --build  # Migrationen laufen beim Start automatisch
+bin/setup              # ergänzt neue Einträge in .env, ändert keine vorhandenen
+docker compose pull
+docker compose up -d   # Migrationen laufen beim Start automatisch
 ```
+
+`git pull` holt dabei nur `compose.yaml`, die Skripte und die Doku — der Code
+steckt im Image. Steht in `.env` ein fester `HERMES_TAG`, muss der vorher auf
+die neue Version gesetzt werden, sonst ändert `docker compose pull` nichts.
+
+Wer ohne Registry arbeitet, nimmt weiterhin `docker compose up -d --build`.
 
 ## Wenn etwas nicht geht
 

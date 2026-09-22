@@ -1,0 +1,137 @@
+name: Images
+
+# Builds the two images a Hermes installation runs and pushes them to the
+# GitHub package registry, so a rollout is a `docker compose pull` instead of
+# a ten-minute build on the customer's mini-PC (Asterisk is compiled from
+# source, see asterisk/Dockerfile).
+#
+# Pull requests build both images but push nothing — that is the check that
+# the Dockerfiles still work.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one pointless.
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # Nothing gets published that does not compile, format, pass Credo and pass
+  # the tests. Remove this job and the `needs:` below to publish regardless.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Dockerfile pins the exact patch versions for the release; here the
+      # minor is enough, so a runner without that exact build still works.
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "26"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ hashFiles('mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-
+
+      - run: mix deps.get
+
+      # `mix precommit` rewrites formatting; CI has to complain instead.
+      - run: mix compile --warnings-as-errors
+      - run: mix deps.unlock --check-unused
+      - run: mix format --check-formatted
+      - run: mix credo --strict
+      - run: mix test
+
+  images:
+    name: ${{ matrix.image }}
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: app
+            context: .
+          - image: asterisk
+            context: ./asterisk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Anmelden an der Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # ghcr.io/philpinsdorf/hermes/app and …/asterisk — grouped under the
+          # repository, like the portals project does with its single image.
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,prefix=sha-
+          labels: |
+            org.opencontainers.image.title=hermes-${{ matrix.image }}
+            org.opencontainers.image.description=Hermes – Bereitschaft auf einer Festnetznummer
+
+      # amd64 only: the docs ask for an x86-64 machine next to the Fritz!Box,
+      # and building Asterisk from source under emulation would take half an
+      # hour for an architecture nobody deploys on.
+      - name: Bauen und veröffentlichen
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
