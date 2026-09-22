@@ -33,56 +33,182 @@ defmodule HermesWeb.Layouts do
 
   attr :wide, :boolean, default: false, doc: "use the full width, e.g. for the weekly grid"
 
+  attr :branding, :map,
+    default: nil,
+    doc: "name, accent and logo of this installation (see Hermes.Branding)"
+
+  attr :current_path, :string, default: nil, doc: "marks the current page in the navigation"
+
   slot :inner_block, required: true
 
   def app(assigns) do
+    # Pages inside a live_session get this from the on_mount hook; anything
+    # else falls back to reading the settings.
+    assigns =
+      assigns
+      |> assign(:branding, assigns.branding || Hermes.Branding.summary())
+      |> assign(:active_path, active_path(assigns.current_path))
+
     ~H"""
-    <header class="navbar border-b border-base-300 px-4 sm:px-6 lg:px-8">
-      <div class="flex-1 flex items-center gap-6">
-        <.link navigate={~p"/"} class="flex items-center gap-2 font-semibold">
-          <.icon name="hero-phone-arrow-up-right" class="size-5" /> Hermes
+    <header class="border-b border-base-300 bg-base-100">
+      <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+        <.link navigate={~p"/"} class="flex items-center gap-2.5 shrink-0">
+          <.brand_mark branding={@branding} />
+          <span class="font-semibold tracking-tight">{@branding.name}</span>
         </.link>
-        <nav :if={@current_scope && @current_scope.user} class="hidden sm:flex gap-1">
-          <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
-          <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
-          <.link navigate={~p"/calls"} class="btn btn-ghost btn-sm">Anrufe</.link>
-          <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
-          <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
-          <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
+
+        <nav :if={@current_scope && @current_scope.user} class="hidden md:flex items-center gap-0.5">
+          <.nav_link :for={{path, label} <- nav_items()} path={path} active_path={@active_path}>
+            {label}
+          </.nav_link>
         </nav>
-      </div>
-      <div class="flex-none flex items-center gap-2">
-        <%= if @current_scope && @current_scope.user do %>
-          <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm hidden md:inline-flex">
+
+        <div class="ml-auto flex items-center gap-1">
+          <.link
+            :if={@current_scope && @current_scope.user}
+            navigate={~p"/users/settings"}
+            class="hidden lg:inline-flex btn btn-ghost btn-sm font-normal text-base-content/70"
+          >
             {@current_scope.user.email}
           </.link>
-          <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">
+          <.link
+            :if={@current_scope && @current_scope.user}
+            href={~p"/users/log-out"}
+            method="delete"
+            class="btn btn-ghost btn-sm"
+          >
             Abmelden
           </.link>
-        <% end %>
-        <.theme_toggle />
+          <.theme_toggle />
+        </div>
       </div>
-    </header>
-    <nav
-      :if={@current_scope && @current_scope.user}
-      class="sm:hidden flex gap-1 overflow-x-auto px-4 py-2 border-b border-base-300"
-    >
-      <.link navigate={~p"/"} class="btn btn-ghost btn-sm">Übersicht</.link>
-      <.link navigate={~p"/schedule"} class="btn btn-ghost btn-sm">Wochenplan</.link>
-      <.link navigate={~p"/calls"} class="btn btn-ghost btn-sm">Anrufe</.link>
-      <.link navigate={~p"/people"} class="btn btn-ghost btn-sm">Personen</.link>
-      <.link navigate={~p"/settings"} class="btn btn-ghost btn-sm">Einstellungen</.link>
-      <.link navigate={~p"/users"} class="btn btn-ghost btn-sm">Benutzer</.link>
-      <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm">Konto</.link>
-    </nav>
 
-    <main class="px-4 py-10 sm:px-6 lg:px-8">
-      <div class={["mx-auto space-y-4", (@wide && "max-w-6xl") || "max-w-3xl"]}>
+      <nav
+        :if={@current_scope && @current_scope.user}
+        id="mobile-nav"
+        phx-hook=".NavScroll"
+        class="md:hidden flex gap-1 overflow-x-auto border-t border-base-300 px-3 py-1.5 [scrollbar-width:none]"
+      >
+        <.nav_link :for={{path, label} <- nav_items()} path={path} active_path={@active_path}>
+          {label}
+        </.nav_link>
+        <.nav_link path={elem(account_item(), 0)} active_path={@active_path}>
+          {elem(account_item(), 1)}
+        </.nav_link>
+      </nav>
+    </header>
+
+    <main class="px-4 py-6 sm:px-6 sm:py-8">
+      <div class={["mx-auto space-y-6", (@wide && "max-w-6xl") || "max-w-3xl"]}>
         {render_slot(@inner_block)}
       </div>
     </main>
 
     <.flash_group flash={@flash} />
+
+    <%!-- The scrollable navigation starts at the left again on every page
+          change; without this the entry one is on can end up out of sight. --%>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".NavScroll">
+      export default {
+        mounted() { this.showCurrent() },
+        updated() { this.showCurrent() },
+        showCurrent() {
+          const current = this.el.querySelector('[aria-current="page"]')
+          if (!current) return
+          const centered = current.offsetLeft - (this.el.clientWidth - current.offsetWidth) / 2
+          this.el.scrollLeft = Math.max(0, centered)
+        }
+      }
+    </script>
+    """
+  end
+
+  defp nav_items do
+    [
+      {"/", "Übersicht"},
+      {"/schedule", "Wochenplan"},
+      {"/calls", "Anrufe"},
+      {"/people", "Personen"},
+      {"/settings", "Einstellungen"},
+      {"/users", "Benutzer"}
+    ]
+  end
+
+  attr :path, :string, required: true
+  attr :active_path, :string, default: nil
+  slot :inner_block, required: true
+
+  defp nav_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@path}
+      class={[
+        "nav-link whitespace-nowrap rounded-md px-3 text-sm text-base-content/70",
+        "flex items-center min-h-10 md:min-h-9 hover:bg-base-200"
+      ]}
+      aria-current={@path == @active_path && "page"}
+    >
+      {render_slot(@inner_block)}
+    </.link>
+    """
+  end
+
+  # The account page lives under /users/…, but belongs to "Konto", not to
+  # "Benutzer". The longest matching entry therefore wins.
+  defp account_item, do: {"/users/settings", "Konto"}
+
+  defp active_path(nil), do: nil
+
+  defp active_path(current) do
+    [account_item() | nav_items()]
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.filter(&matches?(&1, current))
+    |> Enum.max_by(&String.length/1, fn -> nil end)
+  end
+
+  # "/" only matches exactly; everything else also matches its subpages.
+  defp matches?("/", current), do: current == "/"
+  defp matches?(path, current), do: current == path or String.starts_with?(current, path <> "/")
+
+  @doc """
+  Appearance of this installation for the root layout, which is also rendered
+  for pages that never went through a LiveView.
+  """
+  def brand(assigns) do
+    assigns[:branding] || Hermes.Branding.summary()
+  end
+
+  @doc """
+  The accent as a `<style>` element for the page head.
+
+  HEEx does not interpolate inside `<style>`, so the element is built as raw
+  HTML. Its content comes from a fixed set of colours (`Hermes.Branding`),
+  never from user input.
+  """
+  def accent_style(assigns) do
+    Phoenix.HTML.raw("<style>" <> brand(assigns).accent_css <> "</style>")
+  end
+
+  @doc """
+  The logo of this installation, or a neutral icon when none was uploaded.
+  """
+  attr :branding, :map, required: true
+  attr :class, :string, default: "size-7"
+
+  def brand_mark(assigns) do
+    ~H"""
+    <img
+      :if={@branding.logo?}
+      src={~p"/branding/logo?v=#{@branding.logo_version}"}
+      alt=""
+      class={[@class, "object-contain"]}
+    />
+    <span
+      :if={!@branding.logo?}
+      class={[@class, "flex items-center justify-center rounded bg-primary text-primary-content"]}
+    >
+      <.icon name="hero-phone-arrow-up-right" class="size-4" />
+    </span>
     """
   end
 

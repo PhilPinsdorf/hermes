@@ -27,6 +27,11 @@ if time_zone = System.get_env("HERMES_TIME_ZONE") do
   config :hermes, :time_zone, time_zone
 end
 
+# A proxy that terminates TLS but does not set X-Forwarded-Proto would send the
+# browser in circles; HTTPS_REDIRECT=false keeps the secure cookie and HSTS but
+# leaves the redirecting to the proxy.
+config :hermes, :https_redirect, System.get_env("HTTPS_REDIRECT", "true") != "false"
+
 if System.get_env("SOUNDS_DIR") do
   config :hermes, :sounds_dir, System.get_env("SOUNDS_DIR")
 end

@@ -8,7 +8,12 @@ defmodule HermesWeb.PersonLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      branding={@branding}
+      current_path={@current_path}
+    >
       <.header>
         {@page_title}
       </.header>
@@ -38,9 +43,19 @@ defmodule HermesWeb.PersonLive.Form do
         <.input field={@form[:active]} type="checkbox" label="Aktiv (kann Dienst haben)" />
         <.input field={@form[:notes]} type="textarea" label="Notizen" />
 
-        <footer class="flex gap-2">
+        <footer class="flex flex-wrap items-center gap-2">
           <.button phx-disable-with="Speichere..." variant="primary">Speichern</.button>
           <.button navigate={~p"/people"}>Abbrechen</.button>
+          <button
+            :if={@live_action == :edit}
+            type="button"
+            id="delete-person"
+            phx-click="delete"
+            data-confirm={"#{@person.name} wirklich löschen? Damit verschwinden auch die Schichten und Ausnahmen dieser Person."}
+            class="btn btn-error btn-soft sm:ml-auto"
+          >
+            Person löschen
+          </button>
         </footer>
       </.form>
     </Layouts.app>
@@ -81,6 +96,16 @@ defmodule HermesWeb.PersonLive.Form do
 
   def handle_event("save", %{"person" => person_params}, socket) do
     save_person(socket, socket.assigns.live_action, person_params)
+  end
+
+  def handle_event("delete", _params, socket) do
+    person = socket.assigns.person
+    {:ok, _} = Directory.delete_person(person)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "#{person.name} wurde gelöscht.")
+     |> push_navigate(to: ~p"/people")}
   end
 
   defp save_person(socket, :edit, person_params) do

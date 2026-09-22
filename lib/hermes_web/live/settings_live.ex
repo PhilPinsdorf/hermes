@@ -1,6 +1,7 @@
 defmodule HermesWeb.SettingsLive do
   use HermesWeb, :live_view
 
+  alias Hermes.Branding
   alias Hermes.Directory.PhoneNumber
   alias Hermes.Settings
   alias Hermes.Sounds
@@ -9,14 +10,76 @@ defmodule HermesWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      branding={@branding}
+      current_path={@current_path}
+    >
       <.header>
         Einstellungen
         <:subtitle>Gelten für alle Anrufe dieser Installation.</:subtitle>
       </.header>
 
+      <section id="branding">
+        <h2 class="text-lg font-semibold">Erscheinungsbild</h2>
+        <p class="text-sm text-base-content/70 mt-1 mb-3">
+          Name, Farbe und Logo dieser Installation – sie erscheinen in der Kopfzeile, im
+          Browser-Tab und auf der Anmeldeseite.
+        </p>
+
+        <.form for={@form} id="branding-form" phx-change="validate" phx-submit="save">
+          <.input field={@form[:brand_name]} type="text" label="Name der Installation" required />
+          <.input
+            field={@form[:accent]}
+            type="select"
+            label="Akzentfarbe"
+            options={Branding.accent_options()}
+          />
+          <div class="flex items-center gap-2 -mt-1 mb-3">
+            <span
+              :for={{_label, value} <- Branding.accent_options()}
+              class={[
+                "size-5 rounded-full border",
+                (to_string(@form[:accent].value) == to_string(value) && "ring-2 ring-offset-2") ||
+                  "opacity-60"
+              ]}
+              style={"background-color: #{Branding.swatch(value)}"}
+              title={value}
+            >
+            </span>
+          </div>
+          <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
+        </.form>
+
+        <form id="logo-form" phx-submit="upload_logo" phx-change="validate_upload" class="mt-4">
+          <span class="fieldset-label">Logo</span>
+          <div class="flex flex-wrap items-center gap-3 mt-1">
+            <Layouts.brand_mark branding={@branding} class="size-10" />
+            <.live_file_input upload={@uploads.logo} class="file-input file-input-sm" />
+            <.button phx-disable-with="Lade hoch...">Logo hochladen</.button>
+            <button
+              :if={@branding.logo?}
+              type="button"
+              phx-click="remove_logo"
+              class="btn btn-sm btn-ghost"
+            >
+              Logo entfernen
+            </button>
+          </div>
+          <p class="text-sm text-base-content/70 mt-1">
+            PNG, JPEG, SVG oder WebP, höchstens 1 MB. Quadratisch sieht am besten aus.
+          </p>
+          <p :for={entry <- @uploads.logo.entries} class="text-sm text-error">
+            {Enum.map_join(upload_errors(@uploads.logo, entry), ", ", &upload_error/1)}
+          </p>
+        </form>
+      </section>
+
+      <div class="divider" />
+
       <.form for={@form} id="settings-form" phx-change="validate" phx-submit="save">
-        <h2 class="text-lg font-semibold mt-4">Anzeige auf dem Handy</h2>
+        <h2 class="text-lg font-semibold">Anzeige auf dem Handy</h2>
         <.input
           field={@form[:clip_number]}
           type="tel"
@@ -273,6 +336,29 @@ defmodule HermesWeb.SettingsLive do
     end
   end
 
+  def handle_event("upload_logo", _params, socket) do
+    results =
+      consume_uploaded_entries(socket, :logo, fn %{path: path}, entry ->
+        {:ok, Branding.put_logo(path, entry.client_type)}
+      end)
+
+    case results do
+      [{:ok, _setting}] ->
+        {:noreply, socket |> refresh_branding() |> put_flash(:info, "Logo übernommen.")}
+
+      [{:error, reason}] ->
+        {:noreply, put_flash(socket, :error, logo_error(reason))}
+
+      [] ->
+        {:noreply, put_flash(socket, :error, "Bitte zuerst eine Datei auswählen.")}
+    end
+  end
+
+  def handle_event("remove_logo", _params, socket) do
+    {:ok, _setting} = Branding.remove_logo()
+    {:noreply, socket |> refresh_branding() |> put_flash(:info, "Logo entfernt.")}
+  end
+
   def handle_event("reset_announcement", %{"name" => name}, socket) do
     name |> String.to_existing_atom() |> Sounds.reset()
 
@@ -288,8 +374,12 @@ defmodule HermesWeb.SettingsLive do
 
   # One upload per announcement, so each file input has its own id.
   defp allow_announcement_uploads(socket) do
-    Enum.reduce(Sounds.names(), socket, fn name, socket ->
-      allow_upload(socket, name, accept: ~w(audio/*), max_entries: 1, max_file_size: 10_000_000)
+    socket
+    |> allow_upload(:logo, accept: ~w(image/*), max_entries: 1, max_file_size: 1_000_000)
+    |> then(fn socket ->
+      Enum.reduce(Sounds.names(), socket, fn name, socket ->
+        allow_upload(socket, name, accept: ~w(audio/*), max_entries: 1, max_file_size: 10_000_000)
+      end)
     end)
   end
 
@@ -307,12 +397,20 @@ defmodule HermesWeb.SettingsLive do
          |> assign(:setting, setting)
          |> assign(:form, to_form(Settings.change(setting)))
          |> assign_audio_version()
+         |> refresh_branding()
          |> put_flash(:info, message)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
     end
   end
+
+  # The header shows the logo too, so it has to be re-read after a change.
+  defp refresh_branding(socket), do: assign(socket, :branding, Branding.summary())
+
+  defp logo_error(:unsupported_format), do: "Dieses Bildformat wird nicht unterstützt."
+  defp logo_error(:too_large), do: "Das Logo darf höchstens 1 MB groß sein."
+  defp logo_error(reason), do: "Logo konnte nicht gespeichert werden: #{inspect(reason)}"
 
   defp announcement_title(:no_one_on_duty), do: "Niemand erreichbar"
   defp announcement_title(:all_busy), do: "Alle im Gespräch"

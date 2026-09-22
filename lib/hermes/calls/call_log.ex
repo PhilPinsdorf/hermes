@@ -6,6 +6,7 @@ defmodule Hermes.Calls.CallLog do
 
     * `:bridged` — put through to a person
     * `:announced` — nobody could take it; the caller heard the announcement
+    * `:paused` — forwarding was switched off
     * `:all_busy` — everybody on duty was already in a call
     * `:rejected` — somebody pressed 3 (rejected for everyone)
     * `:abandoned` — the caller hung up before anything came of it
@@ -17,7 +18,7 @@ defmodule Hermes.Calls.CallLog do
   alias Hermes.Calls.CallAttempt
   alias Hermes.Directory.Person
 
-  @results [:bridged, :announced, :all_busy, :rejected, :abandoned, :failed]
+  @results [:bridged, :announced, :all_busy, :rejected, :paused, :abandoned, :failed]
 
   schema "call_logs" do
     field :channel_id, :string

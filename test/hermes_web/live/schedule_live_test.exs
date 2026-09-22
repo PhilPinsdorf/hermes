@@ -47,6 +47,47 @@ defmodule HermesWeb.ScheduleLiveTest do
     end
   end
 
+  describe "legend" do
+    test "shows names as chips, not as uppercase status tags", %{conn: conn} do
+      person_fixture(name: "Anna Muster")
+
+      {:ok, lv, html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#legend .person-chip", "Anna Muster")
+      refute html =~ ~s(class="badge)
+    end
+  end
+
+  describe "on a phone" do
+    test "shows a list per day instead of the grid", %{conn: conn} do
+      person = person_fixture(name: "Anna")
+      shift = shift_fixture(person_id: person.id, day_of_week: 3)
+
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      # The grid stays in the markup for wide screens, the list is the phone view.
+      assert has_element?(lv, "#schedule-days")
+      assert has_element?(lv, "#day-list-3 a[href='/schedule/shifts/#{shift.id}/edit']", "Anna")
+      assert has_element?(lv, "#day-list-1", "frei")
+    end
+
+    test "marks a shift that continues from the night before", %{conn: conn} do
+      person = person_fixture(name: "Nacht")
+
+      shift_fixture(
+        person_id: person.id,
+        day_of_week: 2,
+        starts_at: ~T[22:00:00],
+        ends_at: ~T[06:00:00]
+      )
+
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#day-list-2", "22:00–06:00")
+      assert has_element?(lv, "#day-list-3", "aus der Nacht")
+    end
+  end
+
   describe "creating by dragging" do
     test "a selection opens the form pre-filled", %{conn: conn} do
       person_fixture()

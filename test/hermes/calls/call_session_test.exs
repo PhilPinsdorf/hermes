@@ -191,6 +191,46 @@ defmodule Hermes.Calls.CallSessionTest do
     end
   end
 
+  describe "the global switch" do
+    setup do
+      anna = person_fixture(name: "Anna", phone_e164: "0171 1111111")
+      on_duty(anna)
+      %{anna: anna}
+    end
+
+    test "no phone rings while forwarding is switched off" do
+      {:ok, _} = Settings.set_forwarding(false)
+
+      {pid, _ref} = start_call()
+
+      assert_receive {:play, @caller_channel, media}
+      assert media == Sounds.media(:no_one_on_duty)
+      refute_received {:create_channel, _, _, _}
+      assert %{state: :announcing} = sync(pid)
+    end
+
+    test "the call log says the call arrived during a pause" do
+      {:ok, _} = Settings.set_forwarding(false)
+
+      {pid, ref} = start_call()
+      assert_receive {:play, @caller_channel, _}
+
+      GenServer.stop(pid, :normal)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+
+      assert [%{result: :paused, attempts: []}] = Log.list_calls()
+    end
+
+    test "switching it on again makes the phone ring", %{anna: anna} do
+      {:ok, _} = Settings.set_forwarding(false)
+      {:ok, _} = Settings.set_forwarding(true)
+
+      {_pid, _ref} = start_call()
+
+      assert_dialed(anna)
+    end
+  end
+
   describe "forwarding" do
     setup do
       anna = person_fixture(name: "Anna", phone_e164: "0171 1111111")

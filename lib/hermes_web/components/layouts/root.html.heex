@@ -4,8 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Hermes" suffix=" · Hermes" phx-no-format>{assigns[:page_title]}</.live_title>
+    <.live_title default={brand(assigns).name} suffix={" · " <> brand(assigns).name} phx-no-format>{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <link
+      :if={brand(assigns).logo?}
+      rel="icon"
+      href={~p"/branding/logo?v=#{brand(assigns).logo_version}"}
+    />
+    <%!-- The accent of this installation, before anything is painted. --%>
+    {accent_style(assigns)}
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>

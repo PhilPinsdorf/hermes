@@ -12,6 +12,7 @@ defmodule HermesWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_scope_for_user
+    plug HermesWeb.Branding
   end
 
   pipeline :api do
@@ -21,6 +22,13 @@ defmodule HermesWeb.Router do
   # Unauthenticated liveness/readiness probe for Docker healthchecks.
   scope "/", HermesWeb do
     get "/healthz", HealthController, :show
+  end
+
+  # The logo appears on the login page too, so it is readable without a session.
+  scope "/", HermesWeb do
+    pipe_through :browser
+
+    get "/branding/logo", BrandingController, :logo
   end
 
   # Other scopes may use custom stacks.
@@ -37,7 +45,7 @@ defmodule HermesWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{HermesWeb.UserAuth, :require_authenticated}] do
+      on_mount: [{HermesWeb.UserAuth, :require_authenticated}, HermesWeb.Branding] do
       live "/", DashboardLive, :index
 
       live "/schedule", ScheduleLive, :index
@@ -73,7 +81,7 @@ defmodule HermesWeb.Router do
     pipe_through [:browser]
 
     live_session :current_user,
-      on_mount: [{HermesWeb.UserAuth, :mount_current_scope}] do
+      on_mount: [{HermesWeb.UserAuth, :mount_current_scope}, HermesWeb.Branding] do
       live "/users/log-in", UserLive.Login, :new
     end
 

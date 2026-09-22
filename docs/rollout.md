@@ -69,21 +69,51 @@ PHX_URL_SCHEME=http
 PHX_URL_PORT=4000
 ```
 
-**c) Mit TLS über einen eigenen Namen**
+**c) Öffentlich über einen Cloudflare Tunnel (empfohlen für Kunden)**
 
-Dafür muss der Name öffentlich auf diesen Anschluss zeigen und die Ports 80 und
-443 müssen erreichbar sein:
+Der Tunnel baut die Verbindung von innen nach außen auf. Es muss also **kein
+Port im Router freigegeben** werden, und auf dem Rechner selbst muss nichts
+lauschen. TLS und Zertifikat liegen bei Cloudflare, ein eigener Reverse Proxy
+ist nicht nötig.
+
+1. Im Cloudflare-Dashboard unter *Zero Trust → Networks → Tunnels* einen Tunnel
+   anlegen, als Public Hostname die gewünschte Adresse eintragen und als
+   Service `http://app:4000`.
+2. Den angezeigten Token in `.env` eintragen:
 
 ```sh
-HTTP_BIND=127.0.0.1
-PHX_HOST=hermes.kunde.de
+TUNNEL_TOKEN=eyJhIjoi…
+HTTP_BIND=127.0.0.1        # nichts im LAN nötig; nur lokal zum Debuggen
+PHX_HOST=hermes.kunde.de   # die öffentliche Adresse
 PHX_URL_SCHEME=https
 PHX_URL_PORT=443
-ACME_EMAIL=technik@kunde.de
 ```
 
-Danach mit TLS-Profil starten: `docker compose --profile tls up -d`.
-Caddy holt das Zertifikat selbst.
+3. Starten:
+
+```sh
+docker compose --profile tunnel up -d
+```
+
+Sobald `PHX_URL_SCHEME=https` gesetzt ist, kennzeichnet Hermes das
+Sitzungs-Cookie als `Secure` und sendet HSTS. Umgeleitet wird von Cloudflare.
+
+> Wer mag, legt in Cloudflare Access noch eine zweite Anmeldung davor. Die
+> Anmeldung in Hermes bleibt davon unberührt.
+
+**d) Hinter einem anderen Reverse Proxy** (Traefik, nginx, Caddy, Nginx Proxy
+Manager)
+
+Hermes läuft hinter jedem davon. Der Proxy muss nur:
+
+- auf `app:4000` weiterleiten (bzw. auf den veröffentlichten Port),
+- **WebSockets** durchlassen — ohne sie bleibt die Oberfläche stumm,
+- `X-Forwarded-Proto` setzen.
+
+In `.env` wie bei Variante c die öffentliche Adresse und `https` eintragen.
+Setzt der Proxy `X-Forwarded-Proto` **nicht**, entsteht eine Umleitungsschleife;
+dann zusätzlich `HTTPS_REDIRECT=false` setzen, womit das Umleiten dem Proxy
+überlassen wird und nur Cookie-Schutz und HSTS aktiv bleiben.
 
 > Egal welche Variante: **Port 5060 und die RTP-Ports gehören niemals ins
 > Internet.** Sie dürfen nur aus dem lokalen Netz erreichbar sein.

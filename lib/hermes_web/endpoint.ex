@@ -11,9 +11,21 @@ defmodule HermesWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  @doc """
+  Session options without the parts that depend on the installation; see
+  `HermesWeb.Https.session_options/0` for the ones actually used.
+  """
+  def base_session_options, do: @session_options
+
+  # The session options are decided at runtime (the Secure flag depends on
+  # whether this installation runs behind TLS).
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [session: {HermesWeb.Https, :session_options, []}]],
+    longpoll: [connect_info: [session: {HermesWeb.Https, :session_options, []}]]
+
+  # Redirects to https where this installation runs behind TLS; does nothing
+  # in a LAN or Tailscale install (see HermesWeb.Https).
+  plug HermesWeb.Https
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -50,6 +62,10 @@ defmodule HermesWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
+  plug :session
   plug HermesWeb.Router
+
+  defp session(conn, _opts) do
+    Plug.Session.call(conn, Plug.Session.init(HermesWeb.Https.session_options()))
+  end
 end

@@ -19,12 +19,22 @@ defmodule HermesWeb.ScheduleLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} wide>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      branding={@branding}
+      current_path={@current_path}
+      wide
+    >
       <.header>
         Wochenplan
         <:subtitle>
-          In einer Tagesspalte ziehen, um eine Schicht anzulegen; auf eine Schicht klicken, um
-          sie zu bearbeiten. Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter <.link
+          <span class="hidden sm:inline">
+            In einer Tagesspalte ziehen, um eine Schicht anzulegen; auf eine Schicht tippen, um
+            sie zu bearbeiten.
+          </span>
+          <span class="sm:hidden">Auf eine Schicht tippen, um sie zu bearbeiten.</span>
+          Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter <.link
             navigate={~p"/schedule/overrides"}
             class="link"
           >Ausnahmen</.link>.
@@ -39,14 +49,14 @@ defmodule HermesWeb.ScheduleLive do
       <div :if={@people != []} id="legend" class="flex flex-wrap gap-2 text-sm">
         <span
           :for={person <- @people}
-          class={["badge border-l-4", !person.active && "opacity-50"]}
+          class={["person-chip", !person.active && "opacity-50"]}
           style={ScheduleGrid.person_color_style(person)}
         >
           {person.name}
         </span>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="hidden sm:block overflow-x-auto">
         <div class="min-w-[44rem]">
           <div class="grid grid-cols-[3rem_repeat(7,1fr)] text-sm font-semibold text-center">
             <div></div>
@@ -119,6 +129,48 @@ defmodule HermesWeb.ScheduleLive do
         </div>
       </div>
 
+      <%!-- Phones get a list per day instead of seven columns side by side. --%>
+      <div class="sm:hidden space-y-3" id="schedule-days">
+        <section :for={day <- 1..7} id={"day-list-#{day}"}>
+          <h2 class={[
+            "text-sm font-semibold mb-1",
+            (day == @now_day && "text-primary") || "text-base-content/70"
+          ]}>
+            {ScheduleGrid.day_name(day)}
+            <span :if={day == @now_day} class="font-normal">· heute</span>
+          </h2>
+
+          <p :if={@grid[day] == []} class="text-sm text-base-content/50">frei</p>
+
+          <ul class="space-y-1">
+            <%= for seg <- @grid[day] do %>
+              <li :if={!seg.continued?}>
+                <.link
+                  patch={~p"/schedule/shifts/#{seg.shift.id}/edit"}
+                  class={[
+                    "flex items-center gap-3 rounded border border-l-4 px-3 py-2",
+                    !seg.shift.active && "opacity-50 border-dashed"
+                  ]}
+                  style={ScheduleGrid.person_color_style(seg.shift.person)}
+                >
+                  <span class="font-medium">{seg.shift.person.name}</span>
+                  <span class="ml-auto text-sm tabular-nums">
+                    {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
+                      seg.shift.ends_at
+                    )}
+                  </span>
+                </.link>
+              </li>
+              <li :if={seg.continued?} class="px-3 py-1 text-sm text-base-content/60">
+                ↳ aus der Nacht: {seg.shift.person.name} bis {ScheduleGrid.format_time(
+                  seg.shift.ends_at
+                )}
+              </li>
+            <% end %>
+          </ul>
+        </section>
+      </div>
+
       <script :type={Phoenix.LiveView.ColocatedHook} name=".ShiftGrid">
         export default {
           mounted() {
@@ -161,7 +213,11 @@ defmodule HermesWeb.ScheduleLive do
         }
       </script>
 
-      <div :if={@live_action in [:new, :edit]} id="shift-modal" class="modal modal-open">
+      <div
+        :if={@live_action in [:new, :edit]}
+        id="shift-modal"
+        class="modal modal-open modal-bottom sm:modal-middle"
+      >
         <div class="modal-box">
           <h3 class="text-lg font-semibold mb-2">
             {if @live_action == :new, do: "Schicht anlegen", else: "Schicht bearbeiten"}

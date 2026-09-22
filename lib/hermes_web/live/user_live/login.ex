@@ -4,21 +4,30 @@ defmodule HermesWeb.UserLive.Login do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm space-y-4">
-        <div class="text-center">
-          <.header>
-            <p>Anmelden</p>
-            <:subtitle :if={@current_scope}>
-              Für diese Aktion musst du dich erneut anmelden.
-            </:subtitle>
-          </.header>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      branding={@branding}
+      current_path={@current_path}
+    >
+      <div class="mx-auto max-w-sm space-y-6 pt-6">
+        <div class="flex flex-col items-center gap-3 text-center">
+          <Layouts.brand_mark branding={@branding} class="size-12" />
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight">{@branding.name}</h1>
+            <p class="text-sm text-base-content/70">
+              {if @current_scope,
+                do: "Für diese Aktion musst du dich erneut anmelden.",
+                else: "Bereitschaft und Weiterleitung verwalten"}
+            </p>
+          </div>
         </div>
 
         <.form
           :let={f}
           for={@form}
           id="login_form_password"
+          class="card card-body"
           action={~p"/users/log-in"}
           phx-submit="submit_password"
           phx-trigger-action={@trigger_submit}

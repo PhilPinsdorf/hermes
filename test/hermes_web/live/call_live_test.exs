@@ -101,4 +101,14 @@ defmodule HermesWeb.CallLiveTest do
     refute has_element?(lv, "#calls-empty")
     assert render(lv) =~ "+49 30111222"
   end
+
+  test "table cells carry their column name, so phones can stack them", %{conn: conn} do
+    record(%{result: :bridged})
+
+    {:ok, _lv, html} = live(conn, ~p"/calls")
+
+    assert html =~ ~s(data-label="Zeitpunkt")
+    assert html =~ ~s(data-label="Ergebnis")
+    assert html =~ "table-cards"
+  end
 end

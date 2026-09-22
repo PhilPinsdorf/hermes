@@ -15,7 +15,13 @@ defmodule HermesWeb.CallLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} wide>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      branding={@branding}
+      current_path={@current_path}
+      wide
+    >
       <.header>
         Anrufe
         <:subtitle>
@@ -37,7 +43,12 @@ defmodule HermesWeb.CallLive.Index do
         </div>
       </section>
 
-      <.form for={@filter_form} id="call-filter" phx-change="filter" class="grid sm:grid-cols-4 gap-2">
+      <.form
+        for={@filter_form}
+        id="call-filter"
+        phx-change="filter"
+        class="grid grid-cols-2 sm:grid-cols-4 gap-x-3"
+      >
         <.input
           field={@filter_form[:result]}
           type="select"
@@ -85,7 +96,7 @@ defmodule HermesWeb.CallLive.Index do
         <:col :let={{_id, call}} label="Dauer">{duration(call)}</:col>
         <:col :let={{_id, call}} label="Versuche">
           <span :if={call.attempts == []} class="text-base-content/50">–</span>
-          <span :for={attempt <- call.attempts} class="mr-2 whitespace-nowrap">
+          <span :for={attempt <- call.attempts} class="mr-2 inline-block whitespace-nowrap">
             {attempt.person_name}
             <span class={["badge badge-xs", Labels.outcome_class(attempt.outcome)]}>
               {Labels.outcome(attempt.outcome)}

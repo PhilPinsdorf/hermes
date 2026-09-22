@@ -145,4 +145,70 @@ defmodule HermesWeb.SettingsLiveTest do
       assert html =~ "muss kleiner als die Aufbewahrungsdauer sein"
     end
   end
+
+  describe "appearance" do
+    test "name and accent can be changed and show up in the header", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      html =
+        lv
+        |> form("#branding-form", setting: %{brand_name: "Notdienst Süd", accent: "teal"})
+        |> render_submit()
+
+      assert html =~ "Notdienst Süd"
+      setting = Hermes.Settings.get()
+      assert setting.brand_name == "Notdienst Süd"
+      assert setting.accent == :teal
+    end
+
+    test "a name that is too short is rejected", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      html = lv |> form("#branding-form", setting: %{brand_name: "X"}) |> render_submit()
+
+      assert html =~ "muss mindestens 2 Zeichen lang sein"
+      assert Hermes.Settings.get().brand_name == "Hermes"
+    end
+
+    test "the logo is offered for upload and can be removed", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+
+      assert has_element?(lv, "#logo-form")
+      refute has_element?(lv, "#logo-form button", "Logo entfernen")
+
+      {:ok, _} = Hermes.Settings.put_logo("fake-png", "image/png")
+      {:ok, lv, _html} = live(conn, ~p"/settings")
+      assert has_element?(lv, "#logo-form button", "Logo entfernen")
+
+      lv |> element("#logo-form button", "Logo entfernen") |> render_click()
+      refute Hermes.Branding.logo?()
+    end
+  end
+
+  describe "logo delivery" do
+    test "is served with its content type", %{conn: conn} do
+      {:ok, _} = Hermes.Settings.put_logo("fake-png", "image/png")
+
+      conn = get(conn, ~p"/branding/logo")
+
+      assert response(conn, 200) == "fake-png"
+      assert get_resp_header(conn, "content-type") |> hd() =~ "image/png"
+    end
+
+    test "answers with 404 while no logo was uploaded", %{conn: conn} do
+      conn = get(conn, ~p"/branding/logo")
+      assert conn.status == 404
+    end
+  end
+
+  describe "page head" do
+    test "carries the name and the accent", %{conn: conn} do
+      {:ok, _} = Hermes.Settings.update(%{brand_name: "Notdienst", accent: :rose})
+
+      html = conn |> get(~p"/settings") |> html_response(200)
+
+      assert html =~ "· Notdienst"
+      assert html =~ "--color-primary"
+    end
+  end
 end

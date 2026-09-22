@@ -44,6 +44,8 @@ defmodule Hermes.Calls.CallSession do
     :bridged_person_id,
     # which announcement the caller heard, if any
     :announced_with,
+    # set when the call arrived while forwarding was switched off
+    paused?: false,
     # people still to try, in call order
     queue: [],
     # outgoing legs: channel_id => %{person:, state:, slot:, timer:}
@@ -99,6 +101,10 @@ defmodule Hermes.Calls.CallSession do
     state = %{state | inbound_slot: take_channel_slot()}
 
     cond do
+      not state.settings.forwarding_enabled ->
+        Logger.info("call #{state.channel_id}: forwarding is switched off")
+        {:noreply, announce(%{state | state: :resolving, paused?: true}, :no_one_on_duty)}
+
       on_duty == [] ->
         Logger.info("call #{state.channel_id}: nobody on duty")
         {:noreply, announce(%{state | state: :resolving}, :no_one_on_duty)}
@@ -194,6 +200,7 @@ defmodule Hermes.Calls.CallSession do
 
   defp result_of(state) do
     cond do
+      state.paused? -> :paused
       Enum.any?(state.attempts, &(&1.outcome == :rejected_all)) -> :rejected
       state.announced_with == :all_busy -> :all_busy
       state.announced_with != nil -> :announced

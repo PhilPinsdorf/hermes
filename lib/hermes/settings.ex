@@ -37,7 +37,52 @@ defmodule Hermes.Settings do
       Hermes.Sounds.refresh_async(setting)
     end
 
+    broadcast(result)
+  end
+
+  @doc """
+  Turns forwarding on or off globally. While it is off, callers hear the
+  announcement and no phone rings.
+  """
+  def set_forwarding(enabled?) when is_boolean(enabled?) do
+    paused_at = if enabled?, do: nil, else: DateTime.utc_now() |> DateTime.truncate(:second)
+
+    get()
+    |> Ecto.Changeset.change(%{forwarding_enabled: enabled?, forwarding_paused_at: paused_at})
+    |> Repo.update()
+    |> broadcast()
+  end
+
+  @doc "Whether calls are forwarded at all right now."
+  def forwarding_enabled?, do: get().forwarding_enabled
+
+  @doc """
+  Subscribes to `{:settings_changed, %Setting{}}` (used by the overview, so a
+  switch flipped on one device shows up on the others).
+  """
+  def subscribe, do: Phoenix.PubSub.subscribe(Hermes.PubSub, "settings")
+
+  defp broadcast({:ok, setting} = result) do
+    Phoenix.PubSub.broadcast(Hermes.PubSub, "settings", {:settings_changed, setting})
     result
+  end
+
+  defp broadcast(error), do: error
+
+  @doc """
+  Stores or removes the logo. It is not part of the normal settings form, so
+  it gets its own function instead of a changeset field.
+  """
+  def put_logo(data, content_type) do
+    updated_at = if data, do: DateTime.utc_now() |> DateTime.truncate(:second)
+
+    get()
+    |> Ecto.Changeset.change(%{
+      logo_data: data,
+      logo_content_type: content_type,
+      logo_updated_at: updated_at
+    })
+    |> Repo.update()
   end
 
   @doc """
