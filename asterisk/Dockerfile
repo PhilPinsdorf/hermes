@@ -33,7 +33,14 @@ RUN ./configure --with-pjproject-bundled --without-dahdi --without-pri --without
     --enable CORE-SOUNDS-EN-ALAW --disable CORE-SOUNDS-EN-GSM --disable MOH-OPSOUND-WAV \
     menuselect.makeopts
 
-RUN make -j"$(nproc)" \
+# The bundled pjproject does not declare the dependencies between its own
+# libraries, so under `make -j` the archive step for one can start before
+# another has finished — the build then dies without a compiler error, at a
+# different library every time (seen: libpjsua, libpjnath). It is therefore
+# built on its own, serially; Asterisk itself parallelises fine and is where
+# the time goes anyway.
+RUN make -j1 third-party \
+  && make -j"$(nproc)" \
   && make install DESTDIR=/opt/asterisk \
   && rm -rf /opt/asterisk/usr/include \
   # /var/run is a symlink to /run in Debian; the runtime dir is created below.
