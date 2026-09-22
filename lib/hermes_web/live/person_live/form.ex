@@ -52,7 +52,7 @@ defmodule HermesWeb.PersonLive.Form do
             id="delete-person"
             phx-click="delete"
             data-confirm={"#{@person.name} wirklich löschen? Damit verschwinden auch die Schichten und Ausnahmen dieser Person."}
-            class="btn btn-error btn-soft sm:ml-auto"
+            class="btn btn-error sm:ml-auto"
           >
             Person löschen
           </button>

@@ -28,7 +28,7 @@ defmodule HermesWeb.NavigationTest do
     {:ok, lv, _html} = live(conn, ~p"/people/new")
     assert current(lv) == ["/people"]
 
-    {:ok, lv, _html} = live(conn, ~p"/schedule/overrides")
+    {:ok, lv, _html} = live(conn, ~p"/schedule/overrides/new")
     assert current(lv) == ["/schedule"]
   end
 

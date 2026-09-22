@@ -51,7 +51,7 @@ defmodule HermesWeb.DashboardLive do
 
           <label class="flex shrink-0 cursor-pointer items-center gap-2">
             <span class="text-sm text-base-content/70 hidden sm:inline">
-              {if @setting.forwarding_enabled, do: "an", else: "aus"}
+              {if @setting.forwarding_enabled, do: "An", else: "Aus"}
             </span>
             <input
               type="checkbox"
@@ -105,7 +105,12 @@ defmodule HermesWeb.DashboardLive do
             </p>
         <% end %>
 
-        <div id="next-change" class="border-t border-base-300 pt-3 text-sm">
+        <%!-- HEEx drops the newlines between the spans, so the gap between the
+              words comes from the layout rather than from whitespace. --%>
+        <div
+          id="next-change"
+          class="flex flex-wrap items-baseline gap-x-1 border-t border-base-300 pt-3 text-sm"
+        >
           <%= case @status.next_change do %>
             <% nil -> %>
               <span class="text-base-content/60">

@@ -19,43 +19,56 @@
 
 /* daisyUI theme plugin. You can update this file by fetching the latest version with:
   curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.js
-  We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
-  on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
+
+  Both themes follow the portals project: Tailwind's grey scale, mint as the
+  single accent. The page is grey, content sits on white (light) resp. grey-900
+  (dark) cards; the header is white resp. black. Everything that is not a
+  daisyUI token is a Hermes addition and is marked as such. */
 @plugin "../vendor/daisyui-theme" {
   name: "dark";
   default: false;
   prefersdark: true;
   color-scheme: "dark";
-  /* Calm slate, low chroma: this is a tool that runs in the background.
-     --color-primary is overridden per installation (see Hermes.Branding). */
-  --color-base-100: oklch(26% 0.012 250);
-  --color-base-200: oklch(22% 0.012 250);
-  --color-base-300: oklch(18% 0.01 250);
-  --color-base-content: oklch(92% 0.008 250);
-  --color-primary: oklch(72% 0.05 250);
-  --color-primary-content: oklch(20% 0.02 250);
-  --color-secondary: oklch(60% 0.03 250);
-  --color-secondary-content: oklch(97% 0.005 250);
-  --color-accent: oklch(70% 0.06 220);
-  --color-accent-content: oklch(20% 0.02 220);
-  --color-neutral: oklch(35% 0.015 250);
-  --color-neutral-content: oklch(96% 0.005 250);
-  --color-info: oklch(70% 0.07 230);
-  --color-info-content: oklch(20% 0.02 230);
-  --color-success: oklch(68% 0.1 155);
-  --color-success-content: oklch(18% 0.03 155);
-  --color-warning: oklch(75% 0.11 80);
-  --color-warning-content: oklch(20% 0.03 80);
-  --color-error: oklch(65% 0.14 25);
-  --color-error-content: oklch(18% 0.03 25);
+  --color-base-100: #030712;
+  --color-base-200: #1f2937;
+  --color-base-300: #374151;
+  --color-base-content: #f3f4f6;
+  --color-primary: #22948c;
+  --color-primary-content: #ffffff;
+  --color-secondary: #9ca3af;
+  --color-secondary-content: #111827;
+  --color-accent: #00b5ad;
+  --color-accent-content: #111827;
+  --color-neutral: #6b7280;
+  --color-neutral-content: #ffffff;
+  --color-info: #60a5fa;
+  --color-info-content: #111827;
+  --color-success: #4ade80;
+  --color-success-content: #111827;
+  --color-warning: #facc15;
+  --color-warning-content: #111827;
+  --color-error: #f87171;
+  --color-error-content: #111827;
   --radius-selector: 0.375rem;
   --radius-field: 0.375rem;
-  --radius-box: 0.625rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.21875rem;
   --size-field: 0.21875rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
+
+  /* Hermes: surfaces that are not part of daisyUI's token set. */
+  --surface: #111827;
+  --surface-head: #000000;
+  --table-head: #111827;
+  --table-body: #1f2937;
+  --badge-quiet: #374151;
+  --toggle-track: #4b5563;
+  --field-bg: #374151;
+  --field-border: #374151;
+  --link-color: #00b5ad;
+  --ring-color: rgb(255 255 255 / 0.1);
 }
 
 @plugin "../vendor/daisyui-theme" {
@@ -63,35 +76,46 @@
   default: true;
   prefersdark: false;
   color-scheme: "light";
-  /* Paper-like background, slate text, thin borders instead of shadows. */
-  --color-base-100: oklch(99% 0.002 250);
-  --color-base-200: oklch(97% 0.004 250);
-  --color-base-300: oklch(92% 0.006 250);
-  --color-base-content: oklch(28% 0.02 250);
-  --color-primary: oklch(45% 0.04 250);
-  --color-primary-content: oklch(98% 0.005 250);
-  --color-secondary: oklch(52% 0.03 250);
-  --color-secondary-content: oklch(98% 0.005 250);
-  --color-accent: oklch(50% 0.05 220);
-  --color-accent-content: oklch(98% 0.005 220);
-  --color-neutral: oklch(38% 0.02 250);
-  --color-neutral-content: oklch(98% 0.003 250);
-  --color-info: oklch(52% 0.08 235);
-  --color-info-content: oklch(98% 0.01 235);
-  --color-success: oklch(52% 0.1 155);
-  --color-success-content: oklch(98% 0.01 155);
-  --color-warning: oklch(60% 0.12 75);
-  --color-warning-content: oklch(99% 0.01 75);
-  --color-error: oklch(52% 0.16 25);
-  --color-error-content: oklch(98% 0.01 25);
+  --color-base-100: #f3f4f6;
+  --color-base-200: #e5e7eb;
+  --color-base-300: #d1d5db;
+  --color-base-content: #111827;
+  --color-primary: #22948c;
+  --color-primary-content: #ffffff;
+  --color-secondary: #6b7280;
+  --color-secondary-content: #ffffff;
+  --color-accent: #00b5ad;
+  --color-accent-content: #ffffff;
+  --color-neutral: #6b7280;
+  --color-neutral-content: #ffffff;
+  --color-info: #2563eb;
+  --color-info-content: #ffffff;
+  --color-success: #16a34a;
+  --color-success-content: #ffffff;
+  --color-warning: #ca8a04;
+  --color-warning-content: #ffffff;
+  --color-error: #dc2626;
+  --color-error-content: #ffffff;
   --radius-selector: 0.375rem;
   --radius-field: 0.375rem;
-  --radius-box: 0.625rem;
+  --radius-box: 0.5rem;
   --size-selector: 0.21875rem;
   --size-field: 0.21875rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
+
+  /* Hermes: surfaces that are not part of daisyUI's token set. */
+  --surface: #ffffff;
+  --surface-head: #ffffff;
+  --table-head: #f9fafb;
+  --table-body: #ffffff;
+  --badge-quiet: #e5e7eb;
+  --toggle-track: #d1d5db;
+  --field-bg: #ffffff;
+  --field-border: #d1d5db;
+  --link-color: #22948c;
+  --ring-color: rgb(0 0 0 / 0.05);
 }
 
 /* Add variants based on LiveView classes */
@@ -109,42 +133,172 @@
 
 /* --- Hermes ------------------------------------------------------------ */
 
-/* System fonts: no web font to load, works offline in a LAN install. */
+/* Inter like in portals, but never fetched from the network: an installation
+   sits in a customer's LAN and may have no route to the internet at all. The
+   stack therefore uses Inter where the system has it and falls back to the
+   system font everywhere else. */
 :root {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Inter var", Inter, ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Tailwind's shadow / shadow-sm, the only two portals uses. */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-flat: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 body {
   font-family: var(--font-sans);
-  /* Slightly tighter text, a bit more air between lines: reads calmer. */
-  letter-spacing: -0.006em;
-  line-height: 1.6;
 }
 
+/* Headings are bold and tight, as in portals' UiH1/UiH2. */
 h1, h2, h3 {
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
 }
 
-/* Cards are outlined, not filled: less noise on a page full of status. */
+/* --- Surfaces ---------------------------------------------------------- */
+
+/* Cards are filled and float on the grey page, with a divider between body
+   and footer — portals' card/Base.vue. */
 .card {
-  border: 1px solid var(--color-base-300);
-  background-color: var(--color-base-100);
+  background-color: var(--surface);
+  border-radius: var(--radius-box);
+  box-shadow: var(--shadow-card);
 }
 
-/* The current page in the navigation */
-.nav-link[aria-current="page"] {
-  background-color: var(--color-base-200);
+.card-body {
+  padding: 1.5rem;
+}
+
+.modal-box {
+  background-color: var(--surface);
+}
+
+/* The header: white on light, black on dark, separated by a shadow instead of
+   a border. */
+.app-header {
+  background-color: var(--surface-head);
+  box-shadow: var(--shadow-flat);
+}
+
+/* --- Navigation -------------------------------------------------------- */
+
+/* Tabs carry a thick underline; the page one is on is mint. */
+.nav-link {
+  border-bottom: 3px solid transparent;
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+
+.nav-link:hover {
+  border-bottom-color: var(--color-base-300);
   color: var(--color-base-content);
-  font-weight: 600;
 }
 
-/* Tables: quiet header, clear separation */
-table thead th {
+.nav-link[aria-current="page"] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-base-content);
+}
+
+/* --- Links and buttons -------------------------------------------------- */
+
+/* Mint, underlined only on hover (portals' app/Link.vue). */
+.link {
+  color: var(--link-color);
+  text-decoration-line: none;
+}
+
+.link:hover {
+  text-decoration-line: underline;
+}
+
+/* portals' buttons grow *lighter* on hover, not darker. */
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* The quiet button is grey and filled, not outlined. */
+.btn-neutral:hover:not(:disabled) {
+  background-color: #374151;
+  border-color: #374151;
+}
+
+/* --- Forms -------------------------------------------------------------- */
+
+/* Inputs are white (light) resp. grey-700 (dark) with a thin border and a
+   hairline shadow — portals' FormKit text classification. */
+.input, .select, .textarea, .file-input {
+  background-color: var(--field-bg);
+  border-color: var(--field-border);
+  box-shadow: var(--shadow-flat);
+}
+
+.input:focus, .input:focus-within,
+.select:focus, .select:focus-within,
+.textarea:focus, .textarea:focus-within,
+.file-input:focus, .file-input:focus-within {
+  outline-color: var(--color-accent);
+}
+
+/* Labels sit above the field, small and medium weight, not dimmed. */
+.fieldset > label > .label, .fieldset-label {
+  color: var(--color-base-content);
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* --- Messages ----------------------------------------------------------- */
+
+/* Tinted background, matching text — portals' ui/Message.vue. The tint is
+   mixed from the state colour so both themes stay in step. */
+.alert {
+  border: 0;
+  border-radius: var(--radius-field);
+  font-weight: 500;
+  box-shadow: var(--shadow-card);
+}
+
+.alert-info, .alert-success, .alert-warning, .alert-error {
+  background-color: color-mix(in oklab, var(--alert-color) 16%, var(--surface));
+  color: var(--alert-color);
+}
+
+.alert-info { --alert-color: var(--color-info) }
+.alert-success { --alert-color: var(--color-success) }
+.alert-warning { --alert-color: var(--color-warning) }
+.alert-error { --alert-color: var(--color-error) }
+
+/* --- Tables -------------------------------------------------------------- */
+
+/* No zebra stripes: a quiet head, hairlines between the rows, the whole thing
+   framed by a ring — portals' app/Table.vue. */
+.table-frame {
+  border-radius: var(--radius-box);
+  box-shadow: var(--shadow-flat), 0 0 0 1px var(--ring-color);
+  overflow: hidden;
+}
+
+table.table {
+  background-color: var(--table-body);
+}
+
+table.table thead th {
+  background-color: var(--table-head);
+  border-bottom: 1px solid var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.875rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   text-transform: none;
-  color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
+}
+
+table.table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--color-base-300);
+}
+
+table.table tbody td {
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 /* --- Phones -----------------------------------------------------------
@@ -153,6 +307,11 @@ table thead th {
    becomes a small card and each cell shows its column name in front of the
    value, so nothing has to scroll sideways. */
 @media (width < 40rem) {
+  .table-frame {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   table.table-cards thead {
     display: none;
   }
@@ -165,15 +324,20 @@ table thead th {
     width: 100%;
   }
 
-  table.table-cards tr {
-    margin-bottom: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--color-base-300);
-    border-radius: var(--radius-box);
-    background-color: var(--color-base-100);
+  table.table-cards {
+    background-color: transparent;
   }
 
-  table.table-cards td {
+  table.table-cards tr {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-box);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  table.table-cards td,
+  table.table-cards tbody tr:not(:last-child) td {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -186,8 +350,9 @@ table thead th {
   table.table-cards td[data-label]:not([data-label=""])::before {
     content: attr(data-label);
     flex: 0 0 auto;
-    color: color-mix(in oklch, var(--color-base-content) 55%, transparent);
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
     font-size: 0.8125rem;
+    font-weight: 400;
     text-align: left;
   }
 
@@ -197,6 +362,8 @@ table thead th {
   }
 }
 
+/* --- Tags -------------------------------------------------------------- */
+
 /* Status tags ("vermittelt", "inaktiv", "keine Taste") read as labels, not as
    sentences: small caps-style, centred in their line. Names never get this —
    they use .person-chip below. */
@@ -205,6 +372,38 @@ table thead th {
   letter-spacing: 0.06em;
   font-weight: 600;
   vertical-align: middle;
+}
+
+/* --- Switch -------------------------------------------------------------- */
+
+/* daisyUI draws a switch as an outlined, empty track with a coloured knob,
+   which reads like a radio button. A switch should fill when it is on, so the
+   track carries the colour and the knob stays white and round. */
+.toggle {
+  background-color: var(--toggle-track);
+  border-color: transparent;
+  border-radius: 9999px;
+  box-shadow: none;
+  color: #ffffff;
+  transition: background-color 0.2s;
+}
+
+.toggle:checked,
+.toggle[aria-checked="true"] {
+  background-color: var(--input-color);
+  border-color: transparent;
+}
+
+.toggle::before {
+  border-radius: 9999px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+}
+
+/* A quiet tag needs a surface of its own: the table body is grey-800 in the
+   dark theme, which is exactly what daisyUI would give the tag. */
+.badge-ghost {
+  background-color: var(--badge-quiet);
+  border-color: transparent;
 }
 
 /* A person's colour chip (schedule legend): a name, so no uppercasing. */
@@ -218,3 +417,21 @@ table thead th {
   font-size: 0.875rem;
   line-height: 1.5;
 }
+
+/* --- Theme switch ------------------------------------------------------- */
+
+/* One icon, like portals: the moon offers dark, the sun offers light. Which of
+   the two is shown follows the theme in CSS alone, so nothing flickers before
+   the first paint. */
+.theme-to-light { display: none }
+.theme-to-dark { display: inline-flex }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-to-light { display: inline-flex }
+  :root:not([data-theme="light"]) .theme-to-dark { display: none }
+}
+
+[data-theme="dark"] .theme-to-light { display: inline-flex }
+[data-theme="dark"] .theme-to-dark { display: none }
+[data-theme="light"] .theme-to-light { display: none }
+[data-theme="light"] .theme-to-dark { display: inline-flex }

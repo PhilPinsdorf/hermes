@@ -4,12 +4,12 @@ defmodule HermesWeb.CallLive.Labels do
   """
 
   @results %{
-    bridged: "vermittelt",
+    bridged: "Vermittelt",
     announced: "Ansage",
-    all_busy: "alle im Gespräch",
-    rejected: "abgewiesen",
-    paused: "pausiert",
-    abandoned: "aufgelegt",
+    all_busy: "Alle im Gespräch",
+    rejected: "Abgewiesen",
+    paused: "Pausiert",
+    abandoned: "Aufgelegt",
     failed: "Fehler"
   }
 

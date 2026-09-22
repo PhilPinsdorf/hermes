@@ -210,7 +210,7 @@ defmodule HermesWeb.DashboardLiveTest do
       {:ok, lv, html} = live(conn, ~p"/")
 
       assert has_element?(lv, "#recent-calls")
-      assert html =~ "vermittelt"
+      assert html =~ "Vermittelt"
       # five of six calls are listed
       assert html |> String.split(~s(id="recent-call-)) |> length() == 6
     end

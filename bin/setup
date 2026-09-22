@@ -27,16 +27,28 @@ if [[ ! -f .env ]]; then
   echo "Created .env with fresh secrets."
 else
   added=()
+  filled=()
   while IFS= read -r key; do
     if ! grep -q "^$key=" .env; then
       printf '%s=%s\n' "$key" "$(value_for "$key")" >>.env
       added+=("$key")
+    elif [[ $key == SECRET_KEY_BASE || $key == POSTGRES_PASSWORD || $key == ARI_PASSWORD ]] &&
+      grep -q "^$key=$" .env; then
+      # The key is there but empty — e.g. .env was copied from .env.example by
+      # hand. Compose refuses to start on an empty value just as on a missing
+      # one, so generate the secret now.
+      sed -i "s|^$key=$|$key=$(value_for "$key")|" .env
+      filled+=("$key")
     fi
   done < <(sed -n 's/^\([A-Z_][A-Z0-9_]*\)=.*/\1/p' .env.example)
 
   if ((${#added[@]})); then
     echo "Added to .env: ${added[*]}"
-  else
+  fi
+  if ((${#filled[@]})); then
+    echo "Generated missing secrets in .env: ${filled[*]}"
+  fi
+  if ((${#added[@]} == 0 && ${#filled[@]} == 0)); then
     echo ".env is up to date."
   fi
 fi

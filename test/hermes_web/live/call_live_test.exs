@@ -48,7 +48,7 @@ defmodule HermesWeb.CallLiveTest do
 
     {:ok, _lv, html} = live(conn, ~p"/calls")
 
-    assert html =~ "vermittelt"
+    assert html =~ "Vermittelt"
     assert html =~ "+49 15112345678"
     assert html =~ "Bert"
     assert html =~ "keine Taste"
@@ -70,9 +70,31 @@ defmodule HermesWeb.CallLiveTest do
 
     html = lv |> form("#call-filter", filter: %{result: "bridged"}) |> render_change()
 
-    assert html =~ "vermittelt"
+    assert html =~ "Vermittelt"
     refute html =~ "Ansage</span>"
     assert html =~ "1 Anruf"
+  end
+
+  test "opens on the last month", %{conn: conn} do
+    today = DateTime.utc_now() |> Hermes.Schedule.local_naive() |> NaiveDateTime.to_date()
+    record(%{caller_number: "+4930111222"})
+    record(%{caller_number: "+4930999888", started_at: two_months_ago()})
+
+    {:ok, lv, html} = live(conn, ~p"/calls")
+
+    # The dates are pre-filled and the older call is outside the window.
+    assert has_element?(lv, ~s(#call-filter input[name="filter[to]"][value="#{today}"]))
+    assert html =~ "1 Anruf"
+    assert html =~ "+49 30111222"
+    refute html =~ "+49 30999888"
+
+    # Clearing the window brings it back.
+    html = lv |> form("#call-filter", filter: %{from: "", to: ""}) |> render_change()
+    assert html =~ "2 Anrufe"
+  end
+
+  defp two_months_ago do
+    DateTime.utc_now() |> DateTime.add(-62, :day) |> DateTime.truncate(:second)
   end
 
   test "filters by person and date", %{conn: conn} do

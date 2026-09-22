@@ -35,7 +35,7 @@ defmodule HermesWeb.Layouts do
 
   attr :branding, :map,
     default: nil,
-    doc: "name, accent and logo of this installation (see Hermes.Branding)"
+    doc: "name and logo of this installation (see Hermes.Branding)"
 
   attr :current_path, :string, default: nil, doc: "marks the current page in the navigation"
 
@@ -50,14 +50,17 @@ defmodule HermesWeb.Layouts do
       |> assign(:active_path, active_path(assigns.current_path))
 
     ~H"""
-    <header class="border-b border-base-300 bg-base-100">
-      <div class="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:gap-4 sm:px-6">
+    <header class="app-header">
+      <div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         <.link navigate={~p"/"} class="flex items-center gap-2.5 shrink-0">
           <.brand_mark branding={@branding} />
           <span class="font-semibold tracking-tight">{@branding.name}</span>
         </.link>
 
-        <nav :if={@current_scope && @current_scope.user} class="hidden md:flex items-center gap-0.5">
+        <nav
+          :if={@current_scope && @current_scope.user}
+          class="hidden md:-my-px md:ml-2 md:flex md:h-full md:space-x-8"
+        >
           <.nav_link :for={{path, label} <- nav_items()} path={path} active_path={@active_path}>
             {label}
           </.nav_link>
@@ -87,7 +90,7 @@ defmodule HermesWeb.Layouts do
         :if={@current_scope && @current_scope.user}
         id="mobile-nav"
         phx-hook=".NavScroll"
-        class="md:hidden flex gap-1 overflow-x-auto border-t border-base-300 px-3 py-1.5 [scrollbar-width:none]"
+        class="md:hidden flex gap-6 overflow-x-auto border-t border-base-300 px-4 [scrollbar-width:none]"
       >
         <.nav_link :for={{path, label} <- nav_items()} path={path} active_path={@active_path}>
           {label}
@@ -98,8 +101,8 @@ defmodule HermesWeb.Layouts do
       </nav>
     </header>
 
-    <main class="px-4 py-6 sm:px-6 sm:py-8">
-      <div class={["mx-auto space-y-6", (@wide && "max-w-6xl") || "max-w-3xl"]}>
+    <main class="px-4 py-6 sm:px-6 lg:px-8">
+      <div class={["mx-auto space-y-6", (@wide && "max-w-7xl") || "max-w-3xl"]}>
         {render_slot(@inner_block)}
       </div>
     </main>
@@ -143,8 +146,8 @@ defmodule HermesWeb.Layouts do
     <.link
       navigate={@path}
       class={[
-        "nav-link whitespace-nowrap rounded-md px-3 text-sm text-base-content/70",
-        "flex items-center min-h-10 md:min-h-9 hover:bg-base-200"
+        "nav-link inline-flex items-center whitespace-nowrap px-1 text-sm font-medium",
+        "min-h-12 md:h-full md:min-h-0 md:pt-1"
       ]}
       aria-current={@path == @active_path && "page"}
     >
@@ -179,21 +182,10 @@ defmodule HermesWeb.Layouts do
   end
 
   @doc """
-  The accent as a `<style>` element for the page head.
-
-  HEEx does not interpolate inside `<style>`, so the element is built as raw
-  HTML. Its content comes from a fixed set of colours (`Hermes.Branding`),
-  never from user input.
-  """
-  def accent_style(assigns) do
-    Phoenix.HTML.raw("<style>" <> brand(assigns).accent_css <> "</style>")
-  end
-
-  @doc """
   The logo of this installation, or a neutral icon when none was uploaded.
   """
   attr :branding, :map, required: true
-  attr :class, :string, default: "size-7"
+  attr :class, :string, default: "size-8"
 
   def brand_mark(assigns) do
     ~H"""
@@ -256,39 +248,31 @@ defmodule HermesWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Switches between the light and the dark appearance.
 
-  See <head> in root.html.heex which applies the theme before page load.
+  One icon, as in portals: the moon offers dark, the sun offers light. Which of
+  the two is visible is decided in CSS (see `.theme-to-*` in `app.css`), so the
+  right one is already there on the first paint. Until someone picks, the
+  browser setting applies — see `<head>` in root.html.heex.
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-    </div>
+    <button
+      class="theme-to-dark cursor-pointer items-center rounded-md p-2 text-base-content/60 hover:text-accent"
+      phx-click={JS.dispatch("phx:set-theme")}
+      data-phx-theme="dark"
+      aria-label="Dunkles Erscheinungsbild"
+    >
+      <.icon name="hero-moon" class="size-5" />
+    </button>
+    <button
+      class="theme-to-light cursor-pointer items-center rounded-md p-2 text-base-content/60 hover:text-accent"
+      phx-click={JS.dispatch("phx:set-theme")}
+      data-phx-theme="light"
+      aria-label="Helles Erscheinungsbild"
+    >
+      <.icon name="hero-sun" class="size-5" />
+    </button>
     """
   end
 end

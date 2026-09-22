@@ -53,13 +53,13 @@ defmodule HermesWeb.CallLive.Index do
           field={@filter_form[:result]}
           type="select"
           label="Ergebnis"
-          options={[{"alle", ""} | Enum.map(CallLog.results(), &{Labels.result(&1), &1})]}
+          options={[{"Alle", ""} | Enum.map(CallLog.results(), &{Labels.result(&1), &1})]}
         />
         <.input
           field={@filter_form[:person_id]}
           type="select"
           label="Vermittelt an"
-          options={[{"alle", ""} | Enum.map(@people, &{&1.name, &1.id})]}
+          options={[{"Alle", ""} | Enum.map(@people, &{&1.name, &1.id})]}
         />
         <.input field={@filter_form[:from]} type="date" label="Von" />
         <.input field={@filter_form[:to]} type="date" label="Bis" />
@@ -120,10 +120,34 @@ defmodule HermesWeb.CallLive.Index do
      |> assign(:page_title, "Anrufe")
      |> assign(:per_page, @per_page)
      |> assign(:people, Directory.list_people())
-     |> assign(:filters, %{})
-     |> assign(:filter_form, to_form(%{}, as: :filter))
+     |> assign_default_period()
      |> assign(:running, Calls.running())
      |> load_calls()}
+  end
+
+  # The log opens on the last month: the usual question is "what happened
+  # recently", and an installation keeps entries for up to ten years.
+  defp assign_default_period(socket) do
+    today = DateTime.utc_now() |> Hermes.Schedule.local_naive() |> NaiveDateTime.to_date()
+
+    params = %{
+      "from" => Date.to_iso8601(a_month_before(today)),
+      "to" => Date.to_iso8601(today)
+    }
+
+    socket
+    |> assign(:filters, build_filters(params))
+    |> assign(:filter_form, to_form(params, as: :filter))
+  end
+
+  # `Date.shift/2` would do this, but it needs Elixir 1.17 and mix.exs allows
+  # 1.15. The day is clamped to the length of the earlier month, so the 31st of
+  # March goes to the 28th (or 29th) of February rather than overflowing.
+  defp a_month_before(%Date{} = date) do
+    {year, month} =
+      if date.month == 1, do: {date.year - 1, 12}, else: {date.year, date.month - 1}
+
+    Date.new!(year, month, min(date.day, Calendar.ISO.days_in_month(year, month)))
   end
 
   @impl true

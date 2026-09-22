@@ -24,31 +24,12 @@ defmodule HermesWeb.SettingsLive do
       <section id="branding">
         <h2 class="text-lg font-semibold">Erscheinungsbild</h2>
         <p class="text-sm text-base-content/70 mt-1 mb-3">
-          Name, Farbe und Logo dieser Installation – sie erscheinen in der Kopfzeile, im
+          Name und Logo dieser Installation – sie erscheinen in der Kopfzeile, im
           Browser-Tab und auf der Anmeldeseite.
         </p>
 
         <.form for={@form} id="branding-form" phx-change="validate" phx-submit="save">
           <.input field={@form[:brand_name]} type="text" label="Name der Installation" required />
-          <.input
-            field={@form[:accent]}
-            type="select"
-            label="Akzentfarbe"
-            options={Branding.accent_options()}
-          />
-          <div class="flex items-center gap-2 -mt-1 mb-3">
-            <span
-              :for={{_label, value} <- Branding.accent_options()}
-              class={[
-                "size-5 rounded-full border",
-                (to_string(@form[:accent].value) == to_string(value) && "ring-2 ring-offset-2") ||
-                  "opacity-60"
-              ]}
-              style={"background-color: #{Branding.swatch(value)}"}
-              title={value}
-            >
-            </span>
-          </div>
           <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
         </.form>
 

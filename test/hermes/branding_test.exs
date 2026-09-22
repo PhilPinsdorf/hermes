@@ -20,29 +20,6 @@ defmodule Hermes.BrandingTest do
     end
   end
 
-  describe "accent" do
-    test "every accent has a label and a sample colour" do
-      for {label, value} <- Branding.accent_options() do
-        assert is_binary(label)
-        assert Branding.swatch(value) =~ ~r/^#[0-9a-f]{6}$/
-      end
-    end
-
-    test "the CSS covers both themes" do
-      {:ok, setting} = Settings.update(%{accent: :teal})
-      css = Branding.accent_css(setting)
-
-      assert css =~ "--color-primary"
-      assert css =~ "prefers-color-scheme: dark"
-      assert css =~ ~s([data-theme="dark"])
-    end
-
-    test "an unknown accent does not break the page" do
-      css = Branding.accent_css(%{accent: :does_not_exist})
-      assert css =~ "--color-primary"
-    end
-  end
-
   describe "logo" do
     @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82>>
 
@@ -88,12 +65,10 @@ defmodule Hermes.BrandingTest do
 
   describe "summary/1" do
     test "carries everything a page needs" do
-      {:ok, setting} = Settings.update(%{brand_name: "Notdienst", accent: :green})
+      {:ok, setting} = Settings.update(%{brand_name: "Notdienst"})
       summary = Branding.summary(setting)
 
       assert summary.name == "Notdienst"
-      assert summary.accent == :green
-      assert summary.accent_css =~ "--color-primary"
       assert summary.logo? == false
     end
   end

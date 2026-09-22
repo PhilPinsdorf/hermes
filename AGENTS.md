@@ -119,6 +119,21 @@ Controllers automatically have the `current_scope` available if they use the `:b
   `Hermes.Directory`, `Hermes.Settings` etc.
 - The UI is German (`default_locale: "de"`, translations in `priv/gettext/de`).
 
+## Appearance (intentional)
+
+- The palette mirrors the **portals** project: Tailwind greys, mint `#22948c`
+  (hover `#00b5ad`) as the only accent. It lives in `assets/css/app.css`; see
+  `docs/adr/0006-erscheinungsbild-folgt-portals.md`.
+- **There is no colour setting.** Do not reintroduce one — a free choice sooner
+  or later produces something unreadable in one of the two themes.
+- daisyUI stays the component base. Adjust the look through its theme tokens
+  and the rules at the bottom of `app.css`, not by restyling single LiveViews.
+  Those rules are deliberately **unlayered**: daisyUI 5 emits its own
+  components into `@layer utilities`, so anything layered below would lose.
+- **No web font is fetched.** An installation may sit in a LAN without a route
+  to the internet, so the font stack names Inter first and falls back to the
+  system font.
+
 <!-- usage-rules-start -->
 
 <!-- phoenix:elixir-start -->

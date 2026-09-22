@@ -10,9 +10,6 @@ defmodule Hermes.Settings.Setting do
 
   @ring_strategies [:sequential, :simultaneous]
   @busy_policies [:announce]
-  # Curated, muted accents — a free colour picker would sooner or later produce
-  # something unreadable.
-  @accents [:slate, :blue, :teal, :green, :amber, :rose]
 
   schema "settings" do
     # The number every forwarded call shows on the handset (the landline).
@@ -34,7 +31,6 @@ defmodule Hermes.Settings.Setting do
     field :announce_next_shift, :boolean, default: true
     # Appearance of this installation
     field :brand_name, :string, default: "Hermes"
-    field :accent, Ecto.Enum, values: @accents, default: :slate
     field :logo_data, :binary
     field :logo_content_type, :string
     field :logo_updated_at, :utc_datetime
@@ -47,7 +43,6 @@ defmodule Hermes.Settings.Setting do
 
   def ring_strategies, do: @ring_strategies
   def busy_policies, do: @busy_policies
-  def accents, do: @accents
 
   @doc false
   def changeset(setting, attrs) do
@@ -65,8 +60,7 @@ defmodule Hermes.Settings.Setting do
       :text_all_busy,
       :text_confirm,
       :announce_next_shift,
-      :brand_name,
-      :accent
+      :brand_name
     ])
     |> update_change(:clip_display_name, &String.trim/1)
     |> validate_required([
@@ -96,7 +90,7 @@ defmodule Hermes.Settings.Setting do
     |> validate_length(:text_all_busy, max: 500)
     |> validate_length(:text_confirm, max: 500)
     |> update_change(:brand_name, &String.trim/1)
-    |> validate_required([:brand_name, :accent])
+    |> validate_required([:brand_name])
     |> validate_length(:brand_name, min: 2, max: 40)
     |> validate_anonymize_before_deletion()
   end

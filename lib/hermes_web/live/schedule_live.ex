@@ -3,13 +3,21 @@ defmodule HermesWeb.ScheduleLive do
   The weekly plan: a 7-column grid in 30-minute rows. Drag in a day column to
   create a shift, click a shift to edit it. Shifts past midnight continue in
   the next day's column.
+
+  One-off exceptions (holidays, sick leave, swaps) are listed right below the
+  plan they override, and are added through the same kind of dialog as shifts.
   """
   use HermesWeb, :live_view
 
   alias Hermes.Directory
   alias Hermes.Schedule
-  alias Hermes.Schedule.Shift
+  alias Hermes.Schedule.{Override, Shift}
   alias HermesWeb.ScheduleGrid
+
+  @kind_labels %{
+    add: "Im Dienst (Vertretung / zusätzlich)",
+    block: "Abwesend (Urlaub, krank …)"
+  }
 
   # One horizontal line per hour (the column is 60rem = 24 × 2.5rem tall).
   @hour_lines "background-image: repeating-linear-gradient(to bottom, transparent 0, " <>
@@ -34,15 +42,17 @@ defmodule HermesWeb.ScheduleLive do
             sie zu bearbeiten.
           </span>
           <span class="sm:hidden">Auf eine Schicht tippen, um sie zu bearbeiten.</span>
-          Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter <.link
-            navigate={~p"/schedule/overrides"}
-            class="link"
-          >Ausnahmen</.link>.
+          Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter dem Plan.
         </:subtitle>
         <:actions>
-          <.button variant="primary" patch={~p"/schedule/shifts/new"}>
-            <.icon name="hero-plus" /> Schicht anlegen
-          </.button>
+          <div class="flex flex-wrap justify-end gap-2">
+            <.button patch={~p"/schedule/overrides/new"}>
+              <.icon name="hero-plus" /> Ausnahme anlegen
+            </.button>
+            <.button variant="primary" patch={~p"/schedule/shifts/new"}>
+              <.icon name="hero-plus" /> Schicht anlegen
+            </.button>
+          </div>
         </:actions>
       </.header>
 
@@ -171,6 +181,52 @@ defmodule HermesWeb.ScheduleLive do
         </section>
       </div>
 
+      <%!-- Exceptions belong right under the plan they override. --%>
+      <section id="overrides" class="card">
+        <div class="card-body gap-3">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="text-lg font-semibold tracking-tight">Ausnahmen</h2>
+            <p class="text-sm text-base-content/70">
+              Gehen dem Wochenplan vor. Für einen Tausch: die eine Person als abwesend, die
+              andere als im Dienst eintragen.
+            </p>
+          </div>
+
+          <p :if={@overrides == []} id="overrides-empty" class="text-sm text-base-content/70">
+            Keine aktuellen oder geplanten Ausnahmen.
+          </p>
+
+          <ul :if={@overrides != []} class="divide-y divide-base-300 -mb-2">
+            <li
+              :for={override <- @overrides}
+              id={"override-#{override.id}"}
+              class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm"
+            >
+              <span class={[
+                "badge badge-sm",
+                (override.kind == :block && "badge-warning") || "badge-success"
+              ]}>
+                {if override.kind == :block, do: "abwesend", else: "im Dienst"}
+              </span>
+              <span class="font-medium">{override.person.name}</span>
+              <span class="text-base-content/70 tabular-nums">
+                {format_naive(override.starts_at)} – {format_naive(override.ends_at)}
+              </span>
+              <span :if={override.note not in [nil, ""]} class="text-base-content/60">
+                {override.note}
+              </span>
+              <.link
+                phx-click={JS.push("delete_override", value: %{id: override.id})}
+                data-confirm="Ausnahme wirklich löschen?"
+                class="link ml-auto"
+              >
+                Löschen
+              </.link>
+            </li>
+          </ul>
+        </div>
+      </section>
+
       <script :type={Phoenix.LiveView.ColocatedHook} name=".ShiftGrid">
         export default {
           mounted() {
@@ -269,10 +325,68 @@ defmodule HermesWeb.ScheduleLive do
                   id="delete-shift"
                   phx-click="delete"
                   data-confirm="Schicht wirklich löschen?"
-                  class="btn btn-error btn-soft mr-auto"
+                  class="btn btn-error mr-auto"
                 >
                   Löschen
                 </button>
+                <.button patch={~p"/schedule"}>Abbrechen</.button>
+                <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
+              </div>
+            </.form>
+          <% end %>
+        </div>
+        <.link patch={~p"/schedule"} class="modal-backdrop">Schließen</.link>
+      </div>
+
+      <div
+        :if={@live_action == :new_override}
+        id="override-modal"
+        class="modal modal-open modal-bottom sm:modal-middle"
+      >
+        <div class="modal-box">
+          <h3 class="text-lg font-semibold mb-2">Ausnahme anlegen</h3>
+
+          <%= if @people == [] do %>
+            <p>
+              Zuerst eine Person anlegen:
+              <.link navigate={~p"/people/new"} class="link">Person anlegen</.link>
+            </p>
+            <div class="modal-action">
+              <.button patch={~p"/schedule"}>Schließen</.button>
+            </div>
+          <% else %>
+            <.form
+              for={@override_form}
+              id="override-form"
+              phx-change="validate_override"
+              phx-submit="save_override"
+            >
+              <.input
+                field={@override_form[:person_id]}
+                type="select"
+                label="Person"
+                options={person_options(@people)}
+                prompt="Bitte wählen"
+                required
+              />
+              <.input
+                field={@override_form[:kind]}
+                type="select"
+                label="Art"
+                options={for kind <- Override.kinds(), do: {kind_label(kind), kind}}
+              />
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-2">
+                <.input
+                  field={@override_form[:starts_at]}
+                  type="datetime-local"
+                  label="Von"
+                  required
+                />
+                <.input field={@override_form[:ends_at]} type="datetime-local" label="Bis" required />
+              </div>
+              <.input field={@override_form[:note]} type="text" label="Notiz (optional)" />
+
+              <div class="modal-action">
                 <.button patch={~p"/schedule"}>Abbrechen</.button>
                 <.button variant="primary" phx-disable-with="Speichere...">Speichern</.button>
               </div>
@@ -307,6 +421,8 @@ defmodule HermesWeb.ScheduleLive do
   end
 
   defp apply_action(socket, :index, _params), do: assign(socket, :shift, nil)
+
+  defp apply_action(socket, :new_override, _params), do: reset_override_form(socket)
 
   defp apply_action(socket, :new, params) do
     shift = %Shift{
@@ -375,6 +491,30 @@ defmodule HermesWeb.ScheduleLive do
      |> push_patch(to: ~p"/schedule")}
   end
 
+  def handle_event("validate_override", %{"override" => params}, socket) do
+    changeset = Schedule.change_override(%Override{}, params)
+    {:noreply, assign(socket, override_form: to_form(changeset, action: :validate))}
+  end
+
+  def handle_event("save_override", %{"override" => params}, socket) do
+    case Schedule.create_override(params) do
+      {:ok, _override} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Ausnahme gespeichert.")
+         |> load()
+         |> push_patch(to: ~p"/schedule")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, override_form: to_form(changeset))}
+    end
+  end
+
+  def handle_event("delete_override", %{"id" => id}, socket) do
+    {:ok, _} = id |> Schedule.get_override!() |> Schedule.delete_override()
+    {:noreply, socket |> put_flash(:info, "Ausnahme gelöscht.") |> load()}
+  end
+
   @impl true
   def handle_info({:schedule_changed, _}, socket), do: {:noreply, load(socket)}
   def handle_info({:person_changed, _}, socket), do: {:noreply, load(socket)}
@@ -390,6 +530,29 @@ defmodule HermesWeb.ScheduleLive do
     socket
     |> assign(:grid, ScheduleGrid.layout(shifts))
     |> assign(:people, Directory.list_people())
+    |> assign(:overrides, Schedule.list_upcoming_overrides())
+  end
+
+  # Default: absent from today 00:00 for one day.
+  defp reset_override_form(socket) do
+    today = DateTime.utc_now() |> Schedule.local_naive() |> NaiveDateTime.to_date()
+    start = NaiveDateTime.new!(today, ~T[00:00:00])
+
+    override = %Override{
+      kind: :block,
+      starts_at: start,
+      ends_at: NaiveDateTime.add(start, 1, :day)
+    }
+
+    assign(socket, :override_form, to_form(Schedule.change_override(override)))
+  end
+
+  defp kind_label(kind), do: Map.fetch!(@kind_labels, kind)
+
+  defp format_naive(%NaiveDateTime{} = n) do
+    Calendar.strftime(n, "%a %d.%m.%Y %H:%M",
+      abbreviated_day_of_week_names: &ScheduleGrid.day_abbr/1
+    )
   end
 
   defp assign_now(socket) do

@@ -51,7 +51,7 @@ defmodule HermesWeb.Router do
       live "/schedule", ScheduleLive, :index
       live "/schedule/shifts/new", ScheduleLive, :new
       live "/schedule/shifts/:id/edit", ScheduleLive, :edit
-      live "/schedule/overrides", OverrideLive, :index
+      live "/schedule/overrides/new", ScheduleLive, :new_override
 
       live "/calls", CallLive.Index, :index
 

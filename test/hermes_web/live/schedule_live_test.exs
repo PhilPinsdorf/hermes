@@ -168,4 +168,84 @@ defmodule HermesWeb.ScheduleLiveTest do
       refute has_element?(lv, "#shift-#{shift.id}-1")
     end
   end
+
+  describe "exceptions" do
+    test "are listed under the plan", %{conn: conn} do
+      person = person_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+      assert has_element?(lv, "#overrides-empty")
+
+      override = override_fixture(person_id: person.id, note: "Sommerurlaub")
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      refute has_element?(lv, "#overrides-empty")
+      assert has_element?(lv, "#override-#{override.id}", "Sommerurlaub")
+    end
+
+    test "the button opens the dialog", %{conn: conn} do
+      person_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      refute has_element?(lv, "#override-modal")
+
+      lv |> element("a", "Ausnahme anlegen") |> render_click()
+
+      assert_patch(lv, ~p"/schedule/overrides/new")
+      assert has_element?(lv, "#override-modal #override-form")
+    end
+
+    test "a holiday is created through the dialog", %{conn: conn} do
+      person = person_fixture(name: "Anna")
+      {:ok, lv, _html} = live(conn, ~p"/schedule/overrides/new")
+
+      lv
+      |> form("#override-form",
+        override: %{
+          person_id: person.id,
+          kind: "block",
+          starts_at: "2099-07-01T00:00",
+          ends_at: "2099-07-15T00:00",
+          note: "Sommerurlaub"
+        }
+      )
+      |> render_submit()
+
+      assert_patch(lv, ~p"/schedule")
+      assert [%{kind: :block, note: "Sommerurlaub"}] = Schedule.list_upcoming_overrides()
+
+      html = render(lv)
+      assert html =~ "Sommerurlaub"
+      assert html =~ "abwesend"
+      assert html =~ "01.07.2099 00:00"
+    end
+
+    test "the interval is validated in the dialog", %{conn: conn} do
+      person = person_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/schedule/overrides/new")
+
+      html =
+        lv
+        |> form("#override-form",
+          override: %{
+            person_id: person.id,
+            starts_at: "2099-07-02T00:00",
+            ends_at: "2099-07-01T00:00"
+          }
+        )
+        |> render_change()
+
+      assert html =~ "muss nach dem Beginn liegen"
+      assert Schedule.list_upcoming_overrides() == []
+    end
+
+    test "an exception is deleted from the list", %{conn: conn} do
+      override = override_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      lv |> element("#override-#{override.id} a", "Löschen") |> render_click()
+
+      assert Schedule.list_upcoming_overrides() == []
+      assert has_element?(lv, "#overrides-empty")
+    end
+  end
 end

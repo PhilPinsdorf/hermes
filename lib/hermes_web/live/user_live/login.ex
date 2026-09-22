@@ -53,7 +53,7 @@ defmodule HermesWeb.UserLive.Login do
           <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
             Anmelden und angemeldet bleiben <span aria-hidden="true">→</span>
           </.button>
-          <.button class="btn btn-primary btn-soft w-full mt-2">
+          <.button class="btn btn-neutral w-full mt-2">
             Nur dieses Mal anmelden
           </.button>
         </.form>

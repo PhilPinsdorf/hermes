@@ -147,18 +147,16 @@ defmodule HermesWeb.SettingsLiveTest do
   end
 
   describe "appearance" do
-    test "name and accent can be changed and show up in the header", %{conn: conn} do
+    test "the name can be changed and shows up in the header", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/settings")
 
       html =
         lv
-        |> form("#branding-form", setting: %{brand_name: "Notdienst Süd", accent: "teal"})
+        |> form("#branding-form", setting: %{brand_name: "Notdienst Süd"})
         |> render_submit()
 
       assert html =~ "Notdienst Süd"
-      setting = Hermes.Settings.get()
-      assert setting.brand_name == "Notdienst Süd"
-      assert setting.accent == :teal
+      assert Hermes.Settings.get().brand_name == "Notdienst Süd"
     end
 
     test "a name that is too short is rejected", %{conn: conn} do
@@ -202,13 +200,12 @@ defmodule HermesWeb.SettingsLiveTest do
   end
 
   describe "page head" do
-    test "carries the name and the accent", %{conn: conn} do
-      {:ok, _} = Hermes.Settings.update(%{brand_name: "Notdienst", accent: :rose})
+    test "carries the name of the installation", %{conn: conn} do
+      {:ok, _} = Hermes.Settings.update(%{brand_name: "Notdienst"})
 
       html = conn |> get(~p"/settings") |> html_response(200)
 
       assert html =~ "· Notdienst"
-      assert html =~ "--color-primary"
     end
   end
 end
