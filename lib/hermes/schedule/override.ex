@@ -27,6 +27,18 @@ defmodule Hermes.Schedule.Override do
 
   def kinds, do: @kinds
 
+  @doc """
+  Whether the exception applies at `local` (wall-clock time) or is still ahead.
+
+  The list only ever shows exceptions that have not ended, so those two are the
+  only cases — without the distinction one has to read every date to see what
+  is in force right now.
+  """
+  @spec state(%__MODULE__{}, NaiveDateTime.t()) :: :running | :planned
+  def state(%__MODULE__{starts_at: starts_at}, %NaiveDateTime{} = local) do
+    if NaiveDateTime.compare(local, starts_at) == :lt, do: :planned, else: :running
+  end
+
   @doc false
   def changeset(override, attrs) do
     override

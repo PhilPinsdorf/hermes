@@ -75,57 +75,115 @@ defmodule HermesWeb.CallLive.Index do
         Keine Anrufe für diese Auswahl.
       </p>
 
-      <.table :if={@calls != []} id="calls" rows={@streams.calls}>
-        <:col :let={{_id, call}} label="Zeitpunkt">{format_time(call.started_at)}</:col>
-        <:col :let={{_id, call}} label="Anrufer">
-          <%= if call.caller_number do %>
-            {PhoneNumber.format(call.caller_number)}
-          <% else %>
-            <span class="text-base-content/50" title="Nummer nach Ablauf der Frist entfernt">
-              entfernt
+      <%!-- Phones: one card per call. The columns of the table would each
+            need their label here, which buries the two things that matter —
+            who called and what came of it. --%>
+      <ul :if={@calls != []} id="call-cards" class="sm:hidden space-y-2">
+        <li
+          :for={call <- @calls}
+          id={"call-card-#{call.id}"}
+          class="card card-body gap-1 p-4"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-lg font-semibold leading-tight tabular-nums">
+              <%= if call.caller_number do %>
+                {PhoneNumber.format(call.caller_number)}
+              <% else %>
+                <span class="text-base-content/50">Nummer entfernt</span>
+              <% end %>
+            </p>
+            <span class={["badge badge-sm shrink-0", Labels.result_class(call.result)]}>
+              {Labels.result(call.result)}
             </span>
-          <% end %>
-        </:col>
-        <:col :let={{_id, call}} label="Ergebnis">
-          <span class={["badge badge-sm", Labels.result_class(call.result)]}>
-            {Labels.result(call.result)}
-          </span>
-        </:col>
-        <:col :let={{_id, call}} label="Vermittelt an">
-          {(call.person && call.person.name) || "–"}
-        </:col>
-        <:col :let={{_id, call}} label="Dauer">{duration(call)}</:col>
-        <:col :let={{_id, call}} label="Versuche">
-          <span :if={call.attempts == []} class="text-base-content/50">–</span>
-          <span :for={attempt <- call.attempts} class="mr-2 inline-block whitespace-nowrap">
-            {attempt.person_name}
-            <span class={["badge badge-xs", Labels.outcome_class(attempt.outcome)]}>
-              {Labels.outcome(attempt.outcome)}
+          </div>
+
+          <p class="text-sm text-base-content/60">
+            {format_time(call.started_at)} · {duration(call)}
+            <span :if={call.person}>· an {call.person.name}</span>
+          </p>
+
+          <p :if={call.attempts != []} class="text-sm">
+            <span :for={attempt <- call.attempts} class="mr-2 inline-block whitespace-nowrap">
+              {attempt.person_name}
+              <span class={["badge badge-xs", Labels.outcome_class(attempt.outcome)]}>
+                {Labels.outcome(attempt.outcome)}
+              </span>
             </span>
-          </span>
-        </:col>
-        <:action :let={{_id, call}}>
-          <%!-- Blocking is per number, so every row of the same caller shows
-                as blocked, not just the one that was clicked. --%>
-          <span
-            :if={Blocklist.blocked?(call.caller_number, @blocked_numbers)}
-            id={"blocked-#{call.id}"}
-            class="btn btn-xs btn-disabled"
-            title="Diese Nummer ist blockiert"
-          >
-            Blockiert
-          </span>
-          <button
-            :if={call.caller_number && not Blocklist.blocked?(call.caller_number, @blocked_numbers)}
-            type="button"
-            id={"block-#{call.id}"}
-            phx-click={JS.push("ask_block", value: %{number: call.caller_number})}
-            class="btn btn-xs btn-error"
-          >
-            Blockieren
-          </button>
-        </:action>
-      </.table>
+          </p>
+
+          <div class="pt-2">
+            <span
+              :if={Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+              class="btn btn-sm btn-disabled w-full"
+            >
+              Blockiert
+            </span>
+            <button
+              :if={call.caller_number && not Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+              type="button"
+              id={"block-card-#{call.id}"}
+              phx-click={JS.push("ask_block", value: %{number: call.caller_number})}
+              class="btn btn-sm btn-error w-full"
+            >
+              Blockieren
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <div :if={@calls != []} class="hidden sm:block">
+        <.table :if={@calls != []} id="calls" rows={@streams.calls}>
+          <:col :let={{_id, call}} label="Zeitpunkt">{format_time(call.started_at)}</:col>
+          <:col :let={{_id, call}} label="Anrufer">
+            <%= if call.caller_number do %>
+              {PhoneNumber.format(call.caller_number)}
+            <% else %>
+              <span class="text-base-content/50" title="Nummer nach Ablauf der Frist entfernt">
+                entfernt
+              </span>
+            <% end %>
+          </:col>
+          <:col :let={{_id, call}} label="Ergebnis">
+            <span class={["badge badge-sm", Labels.result_class(call.result)]}>
+              {Labels.result(call.result)}
+            </span>
+          </:col>
+          <:col :let={{_id, call}} label="Vermittelt an">
+            {(call.person && call.person.name) || "–"}
+          </:col>
+          <:col :let={{_id, call}} label="Dauer">{duration(call)}</:col>
+          <:col :let={{_id, call}} label="Versuche">
+            <span :if={call.attempts == []} class="text-base-content/50">–</span>
+            <span :for={attempt <- call.attempts} class="mr-2 inline-block whitespace-nowrap">
+              {attempt.person_name}
+              <span class={["badge badge-xs", Labels.outcome_class(attempt.outcome)]}>
+                {Labels.outcome(attempt.outcome)}
+              </span>
+            </span>
+          </:col>
+          <:action :let={{_id, call}}>
+            <%!-- Blocking is per number, so every row of the same caller shows
+                  as blocked, not just the one that was clicked. --%>
+            <span
+              :if={Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+              id={"blocked-#{call.id}"}
+              class="btn btn-xs btn-disabled"
+              title="Diese Nummer ist blockiert"
+            >
+              Blockiert
+            </span>
+            <button
+              :if={call.caller_number && not Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+              type="button"
+              id={"block-#{call.id}"}
+              phx-click={JS.push("ask_block", value: %{number: call.caller_number})}
+              class="btn btn-xs btn-error"
+            >
+              Blockieren
+            </button>
+          </:action>
+        </.table>
+      </div>
 
       <.confirm_modal
         :if={@pending_block}

@@ -237,26 +237,40 @@ defmodule HermesWeb.ScheduleLive do
             <li
               :for={override <- @overrides}
               id={"override-#{override.id}"}
-              class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm"
+              class="py-3 sm:flex sm:items-center sm:gap-x-3 sm:py-2"
             >
-              <span class={[
-                "badge badge-sm",
-                (override.kind == :block && "badge-warning") || "badge-success"
-              ]}>
-                {if override.kind == :block, do: "abwesend", else: "im Dienst"}
-              </span>
-              <span class="font-medium">{override.person.name}</span>
-              <span class="text-base-content/70 tabular-nums">
-                {format_naive(override.starts_at)} – {format_naive(override.ends_at)}
-              </span>
-              <span :if={override.note not in [nil, ""]} class="text-base-content/60">
-                {override.note}
-              </span>
+              <div class="flex items-center gap-2">
+                <%!-- Without this one has to read every date to see what is in
+                      force right now. --%>
+                <span class={[
+                  "badge badge-sm",
+                  (Override.state(override, @now) == :running && "badge-info") || "badge-ghost"
+                ]}>
+                  {if Override.state(override, @now) == :running, do: "läuft", else: "geplant"}
+                </span>
+                <span class={[
+                  "badge badge-sm",
+                  (override.kind == :block && "badge-warning") || "badge-success"
+                ]}>
+                  {if override.kind == :block, do: "abwesend", else: "im Dienst"}
+                </span>
+                <span class="font-medium">{override.person.name}</span>
+              </div>
+
+              <div class="mt-1 text-sm text-base-content/70 sm:mt-0 sm:flex sm:items-center sm:gap-3">
+                <span class="block tabular-nums sm:inline">
+                  {format_naive(override.starts_at)} – {format_naive(override.ends_at)}
+                </span>
+                <span :if={override.note not in [nil, ""]} class="block sm:inline">
+                  {override.note}
+                </span>
+              </div>
+
               <button
                 type="button"
                 id={"delete-override-#{override.id}"}
                 phx-click={JS.push("ask_delete_override", value: %{id: override.id})}
-                class="btn btn-xs btn-error ml-auto"
+                class="btn btn-error btn-sm mt-3 w-full sm:btn-xs sm:mt-0 sm:ml-auto sm:w-auto"
               >
                 Löschen
               </button>
@@ -643,6 +657,7 @@ defmodule HermesWeb.ScheduleLive do
     local = Schedule.local_naive(DateTime.utc_now())
 
     socket
+    |> assign(:now, local)
     |> assign(:now_day, Date.day_of_week(local))
     |> assign(:now_minute, local.hour * 60 + local.minute)
   end

@@ -276,6 +276,32 @@ defmodule HermesWeb.ScheduleLiveTest do
       assert Schedule.list_upcoming_overrides() == []
     end
 
+    test "says whether an exception is in force or still ahead", %{conn: conn} do
+      person = person_fixture()
+      now = Hermes.Schedule.local_naive(DateTime.utc_now())
+
+      {:ok, running} =
+        Hermes.Schedule.create_override(%{
+          person_id: person.id,
+          kind: :block,
+          starts_at: NaiveDateTime.add(now, -1, :hour),
+          ends_at: NaiveDateTime.add(now, 1, :hour)
+        })
+
+      {:ok, planned} =
+        Hermes.Schedule.create_override(%{
+          person_id: person.id,
+          kind: :block,
+          starts_at: NaiveDateTime.add(now, 2, :day),
+          ends_at: NaiveDateTime.add(now, 3, :day)
+        })
+
+      {:ok, lv, _html} = live(conn, ~p"/schedule")
+
+      assert has_element?(lv, "#override-#{running.id}", "läuft")
+      assert has_element?(lv, "#override-#{planned.id}", "geplant")
+    end
+
     test "an exception is deleted from the list", %{conn: conn} do
       override = override_fixture()
       {:ok, lv, _html} = live(conn, ~p"/schedule")

@@ -101,8 +101,13 @@ defmodule HermesWeb.Layouts do
       </nav>
     </header>
 
-    <main class="px-4 py-6 sm:px-6 lg:px-8">
-      <div class={["mx-auto space-y-6", (@wide && "max-w-7xl") || "max-w-3xl"]}>
+    <%!-- The gutter sits *inside* the box, exactly as in the header above, so
+          the content lines up with the logo instead of sticking out past it. --%>
+    <main class="py-6">
+      <div class={[
+        "mx-auto space-y-6 px-4 sm:px-6 lg:px-8",
+        (@wide && "max-w-7xl") || "max-w-3xl"
+      ]}>
         {render_slot(@inner_block)}
       </div>
     </main>

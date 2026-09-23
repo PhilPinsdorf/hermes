@@ -25,23 +25,55 @@ defmodule HermesWeb.UserLive.Index do
         </:actions>
       </.header>
 
-      <.table id="users" rows={@streams.users}>
-        <:col :let={{_id, user}} label="E-Mail">{user.email}</:col>
-        <%!-- Your own row carries the marker instead of a button; the account
-              page is already one click away in the header. --%>
-        <:action :let={{_id, user}}>
-          <span :if={self?(user, @current_scope)} class="badge badge-ghost badge-sm">du</span>
-          <button
-            :if={!self?(user, @current_scope)}
-            type="button"
-            id={"delete-user-#{user.id}"}
-            phx-click={JS.push("ask_delete", value: %{id: user.id})}
-            class="btn btn-xs btn-error"
-          >
-            Löschen
-          </button>
-        </:action>
-      </.table>
+      <%!-- Phones: the address is the whole row, so a label for it is noise. --%>
+      <ul id="user-cards" class="sm:hidden space-y-2">
+        <li
+          :for={user <- @users}
+          id={"user-card-#{user.id}"}
+          class="card card-body gap-1 p-4"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <p class="break-all font-medium">{user.email}</p>
+            <span
+              :if={self?(user, @current_scope)}
+              class="badge badge-ghost badge-sm shrink-0"
+            >
+              du
+            </span>
+          </div>
+
+          <div :if={!self?(user, @current_scope)} class="pt-2">
+            <button
+              type="button"
+              id={"delete-user-card-#{user.id}"}
+              phx-click={JS.push("ask_delete", value: %{id: user.id})}
+              class="btn btn-sm btn-error w-full"
+            >
+              Löschen
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <div class="hidden sm:block">
+        <.table id="users" rows={@users} row_id={&"users-#{&1.id}"}>
+          <:col :let={user} label="E-Mail">{user.email}</:col>
+          <%!-- Your own row carries the marker instead of a button; the account
+                page is already one click away in the header. --%>
+          <:action :let={user}>
+            <span :if={self?(user, @current_scope)} class="badge badge-ghost badge-sm">du</span>
+            <button
+              :if={!self?(user, @current_scope)}
+              type="button"
+              id={"delete-user-#{user.id}"}
+              phx-click={JS.push("ask_delete", value: %{id: user.id})}
+              class="btn btn-xs btn-error"
+            >
+              Löschen
+            </button>
+          </:action>
+        </.table>
+      </div>
 
       <.confirm_modal
         :if={@confirm_delete}
@@ -63,7 +95,7 @@ defmodule HermesWeb.UserLive.Index do
      socket
      |> assign(:page_title, "Benutzer")
      |> assign(:confirm_delete, nil)
-     |> stream(:users, Accounts.list_users())}
+     |> assign(:users, Accounts.list_users())}
   end
 
   @impl true
@@ -85,7 +117,7 @@ defmodule HermesWeb.UserLive.Index do
 
         {:noreply,
          socket
-         |> stream_delete(:users, user)
+         |> assign(:users, Accounts.list_users())
          |> put_flash(:info, "#{user.email} wurde gelöscht.")}
 
       {:error, :self} ->

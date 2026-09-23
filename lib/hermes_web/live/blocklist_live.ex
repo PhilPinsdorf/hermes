@@ -36,29 +36,57 @@ defmodule HermesWeb.BlocklistLive do
         Keine Nummer blockiert.
       </p>
 
-      <.table
-        :if={@blocked != []}
-        id="blocked"
-        rows={@blocked}
-        row_id={&"blocked-#{&1.id}"}
-      >
-        <:col :let={entry} label="Nummer">{PhoneNumber.format(entry.number)}</:col>
-        <:col :let={entry} label="Notiz">
-          <span :if={entry.note in [nil, ""]} class="text-base-content/50">–</span>
-          {entry.note}
-        </:col>
-        <:col :let={entry} label="Blockiert seit">{format_date(entry.inserted_at)}</:col>
-        <:action :let={entry}>
-          <button
-            type="button"
-            id={"unblock-#{entry.id}"}
-            phx-click={JS.push("ask_unblock", value: %{id: entry.id})}
-            class="btn btn-xs btn-primary"
-          >
-            Freigeben
-          </button>
-        </:action>
-      </.table>
+      <%!-- Phones: one card per number, the number itself first. --%>
+      <ul :if={@blocked != []} id="blocked-cards" class="sm:hidden space-y-2">
+        <li
+          :for={entry <- @blocked}
+          id={"blocked-card-#{entry.id}"}
+          class="card card-body gap-1 p-4"
+        >
+          <p class="text-lg font-semibold leading-tight tabular-nums">
+            {PhoneNumber.format(entry.number)}
+          </p>
+          <p :if={entry.note not in [nil, ""]} class="text-base">{entry.note}</p>
+          <p class="text-sm text-base-content/60">blockiert seit {format_date(entry.inserted_at)}</p>
+
+          <div class="pt-2">
+            <button
+              type="button"
+              id={"unblock-card-#{entry.id}"}
+              phx-click={JS.push("ask_unblock", value: %{id: entry.id})}
+              class="btn btn-sm btn-primary w-full"
+            >
+              Freigeben
+            </button>
+          </div>
+        </li>
+      </ul>
+
+      <div :if={@blocked != []} class="hidden sm:block">
+        <.table
+          :if={@blocked != []}
+          id="blocked"
+          rows={@blocked}
+          row_id={&"blocked-#{&1.id}"}
+        >
+          <:col :let={entry} label="Nummer">{PhoneNumber.format(entry.number)}</:col>
+          <:col :let={entry} label="Notiz">
+            <span :if={entry.note in [nil, ""]} class="text-base-content/50">–</span>
+            {entry.note}
+          </:col>
+          <:col :let={entry} label="Blockiert seit">{format_date(entry.inserted_at)}</:col>
+          <:action :let={entry}>
+            <button
+              type="button"
+              id={"unblock-#{entry.id}"}
+              phx-click={JS.push("ask_unblock", value: %{id: entry.id})}
+              class="btn btn-xs btn-primary"
+            >
+              Freigeben
+            </button>
+          </:action>
+        </.table>
+      </div>
 
       <.confirm_modal
         :if={@pending_unblock}
