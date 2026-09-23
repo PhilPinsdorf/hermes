@@ -42,9 +42,7 @@ defmodule HermesWeb.ScheduleLive do
             sie zu bearbeiten.
           </span>
           <span class="sm:hidden">Auf eine Schicht tippen, um sie zu bearbeiten.</span>
-          Die Zahl vor dem Namen ist die Reihenfolge: kleiner wird zuerst angerufen, bei
-          gleicher Zahl entscheidet das Los. Einmalige Ausnahmen wie Urlaub oder Tausch
-          stehen unter dem Plan und werden zuletzt gerufen.
+          Einmalige Ausnahmen wie Urlaub oder Tausch stehen unter dem Plan.
         </:subtitle>
         <:actions>
           <div class="flex flex-wrap justify-end gap-2">
@@ -57,6 +55,35 @@ defmodule HermesWeb.ScheduleLive do
           </div>
         </:actions>
       </.header>
+
+      <section id="priority-rules" class="card card-body gap-2 py-3">
+        <h2 class="text-sm font-semibold">Wer wird zuerst angerufen?</h2>
+        <ul class="space-y-1 text-sm text-base-content/70">
+          <li class="flex gap-2">
+            <span class="text-base-content/40">1.</span>
+            <span>
+              Wer gerade Dienst hat, wird nach <strong>Priorität</strong> gerufen — die
+              kleinere Zahl zuerst. Sie steht unter jeder Schicht.
+            </span>
+          </li>
+          <li class="flex gap-2">
+            <span class="text-base-content/40">2.</span>
+            <span>
+              Bei <strong>gleicher Priorität</strong> entscheidet das Los, damit nicht immer
+              dieselbe Person als Erste klingelt.
+            </span>
+          </li>
+          <li class="flex gap-2">
+            <span class="text-base-content/40">3.</span>
+            <span>
+              <strong>Ausnahmen</strong> (Vertretungen) kommen nach allen Schichten dran.
+            </span>
+          </li>
+        </ul>
+        <p class="text-sm text-base-content/60">
+          Nimmt jemand nicht ab oder gibt mit der Taste 2 weiter, ist die nächste Person dran.
+        </p>
+      </section>
 
       <div :if={@people != []} id="legend" class="flex flex-wrap gap-2 text-sm">
         <span
@@ -118,13 +145,7 @@ defmodule HermesWeb.ScheduleLive do
                 style={ScheduleGrid.segment_style(seg)}
                 title={shift_title(seg.shift)}
               >
-                <span
-                  class="mr-1 inline-block rounded bg-base-content/15 px-1 font-semibold tabular-nums"
-                  title={"Reihenfolge #{seg.shift.position}"}
-                >
-                  {seg.shift.position}
-                </span>
-                <span class="font-semibold">{seg.shift.person.name}</span>
+                <span class="block font-semibold">{seg.shift.person.name}</span>
                 <span :if={!seg.continued?} class="block opacity-70">
                   {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
                     seg.shift.ends_at
@@ -132,6 +153,9 @@ defmodule HermesWeb.ScheduleLive do
                 </span>
                 <span :if={seg.continued?} class="block opacity-70">
                   ↳ bis {ScheduleGrid.format_time(seg.shift.ends_at)}
+                </span>
+                <span :if={!seg.continued?} class="block opacity-70 tabular-nums">
+                  Priorität {seg.shift.position}
                 </span>
               </.link>
 
@@ -166,22 +190,21 @@ defmodule HermesWeb.ScheduleLive do
                 <.link
                   patch={~p"/schedule/shifts/#{seg.shift.id}/edit"}
                   class={[
-                    "flex items-center gap-3 rounded border border-l-4 px-3 py-2",
+                    "block rounded border border-l-4 px-3 py-2",
                     !seg.shift.active && "opacity-50 border-dashed"
                   ]}
                   style={ScheduleGrid.person_color_style(seg.shift.person)}
                 >
-                  <span
-                    class="rounded bg-base-content/15 px-1.5 text-sm font-semibold tabular-nums"
-                    title={"Reihenfolge #{seg.shift.position}"}
-                  >
-                    {seg.shift.position}
+                  <span class="flex items-center gap-3">
+                    <span class="font-medium">{seg.shift.person.name}</span>
+                    <span class="ml-auto text-sm tabular-nums">
+                      {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
+                        seg.shift.ends_at
+                      )}
+                    </span>
                   </span>
-                  <span class="font-medium">{seg.shift.person.name}</span>
-                  <span class="ml-auto text-sm tabular-nums">
-                    {ScheduleGrid.format_time(seg.shift.starts_at)}–{ScheduleGrid.format_time(
-                      seg.shift.ends_at
-                    )}
+                  <span class="block text-sm text-base-content/60 tabular-nums">
+                    Priorität {seg.shift.position}
                   </span>
                 </.link>
               </li>
@@ -327,7 +350,7 @@ defmodule HermesWeb.ScheduleLive do
               <.input
                 field={@form[:position]}
                 type="number"
-                label="Reihenfolge (kleiner = wird zuerst angerufen)"
+                label="Priorität (kleinere Zahl wird zuerst angerufen)"
                 min="0"
               />
               <.input field={@form[:active]} type="checkbox" label="Aktiv" />
