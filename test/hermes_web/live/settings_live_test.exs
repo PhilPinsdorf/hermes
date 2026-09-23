@@ -207,5 +207,23 @@ defmodule HermesWeb.SettingsLiveTest do
 
       assert html =~ "· Notdienst"
     end
+
+    test "carries a favicon even without an uploaded logo", %{conn: conn} do
+      html = conn |> get(~p"/settings") |> html_response(200)
+
+      assert html =~ ~s(rel="icon" href="/favicon.svg")
+      assert html =~ ~s(rel="icon" href="/favicon.ico")
+      refute html =~ "/branding/logo"
+    end
+
+    test "the uploaded logo becomes the favicon", %{conn: conn} do
+      {:ok, _} = Hermes.Settings.put_logo("fake-png", "image/png")
+
+      html = conn |> get(~p"/settings") |> html_response(200)
+
+      assert html =~ ~s(rel="icon" href="/branding/logo?v=)
+      # Only one icon, otherwise the browser may pick the wrong one.
+      refute html =~ "/favicon.svg"
+    end
   end
 end
