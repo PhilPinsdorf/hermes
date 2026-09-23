@@ -16,7 +16,12 @@
       <link rel="icon" href={~p"/branding/logo?v=#{brand(assigns).logo_version}"} />
     <% else %>
       <link rel="icon" href={~p"/favicon.ico?v=#{favicon_version()}"} sizes="48x48" />
-      <link rel="icon" href={~p"/favicon.svg?v=#{favicon_version()}"} type="image/svg+xml" sizes="any" />
+      <link
+        rel="icon"
+        href={~p"/favicon.svg?v=#{favicon_version()}"}
+        type="image/svg+xml"
+        sizes="any"
+      />
     <% end %>
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
