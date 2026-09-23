@@ -508,6 +508,9 @@ defmodule HermesWeb.CoreComponents do
   By default, the outline style is used, but solid and mini may
   be applied by using the `-solid` and `-mini` suffix.
 
+  The `-bold` suffix is ours: the outline glyph with fatter strokes, so an
+  icon holds its own next to bold text. Buttons use it.
+
   You can customize the size and colors of the icons by setting
   width, height, and background color classes.
 

@@ -20,7 +20,7 @@ defmodule HermesWeb.UserLive.Index do
         </:subtitle>
         <:actions>
           <.button variant="primary" navigate={~p"/users/new"}>
-            <.icon name="hero-plus" /> Benutzer anlegen
+            <.icon name="hero-plus-bold" /> Benutzer anlegen
           </.button>
         </:actions>
       </.header>

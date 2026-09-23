@@ -130,6 +130,11 @@ Controllers automatically have the `current_scope` available if they use the `:b
   and the rules at the bottom of `app.css`, not by restyling single LiveViews.
   Those rules are deliberately **unlayered**: daisyUI 5 emits its own
   components into `@layer utilities`, so anything layered below would lose.
+- Heroicons are rendered as CSS masks, so their stroke weight comes from the
+  file. `assets/vendor/heroicons.js` therefore carries a Hermes flavour
+  `hero-<name>-bold` (the outline set at stroke-width 2.25) — that is what
+  buttons use, sized and optically centred by the `.btn > [class*="hero-"]`
+  rule in `app.css`.
 - **No web font is fetched.** An installation may sit in a LAN without a route
   to the internet, so the font stack names Inter first and falls back to the
   system font.

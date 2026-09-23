@@ -238,6 +238,17 @@ h1, h2, h3 {
   border-color: var(--btn-error-hover);
 }
 
+/* Icons in buttons: a touch bigger than the label and drawn with the bold
+   heroicons flavour (see assets/vendor/heroicons.js), so they carry the same
+   weight as the semibold text next to them. The pull to the left cancels the
+   transparent padding inside the glyph's square — without it the label looks
+   pushed to the right. */
+.btn > [class*="hero-"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-inline-start: -0.125rem;
+}
+
 /* The quiet button is grey and filled, not outlined. */
 .btn-neutral:hover:not(:disabled) {
   background-color: #374151;

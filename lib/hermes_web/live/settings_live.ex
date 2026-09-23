@@ -254,7 +254,7 @@ defmodule HermesWeb.SettingsLive do
             herunter und speichert sie einmal im Adressbuch. Die Datei ist für alle gleich.
           </p>
           <.button href={~p"/settings/contact.vcf"} download>
-            <.icon name="hero-arrow-down-tray" /> Kontakt herunterladen (.vcf)
+            <.icon name="hero-arrow-down-tray-bold" /> Kontakt herunterladen (.vcf)
           </.button>
         <% else %>
           <p class="text-base-content/70 my-2">

@@ -19,7 +19,7 @@ defmodule HermesWeb.PersonLive.Index do
         <:subtitle>Wer Anrufe übernehmen kann. Die Handynummern sieht kein Anrufer.</:subtitle>
         <:actions>
           <.button variant="primary" navigate={~p"/people/new"}>
-            <.icon name="hero-plus" /> Person anlegen
+            <.icon name="hero-plus-bold" /> Person anlegen
           </.button>
         </:actions>
       </.header>

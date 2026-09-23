@@ -47,10 +47,10 @@ defmodule HermesWeb.ScheduleLive do
         <:actions>
           <div class="flex flex-wrap justify-end gap-2">
             <.button patch={~p"/schedule/overrides/new"}>
-              <.icon name="hero-plus" /> Ausnahme anlegen
+              <.icon name="hero-plus-bold" /> Ausnahme anlegen
             </.button>
             <.button variant="primary" patch={~p"/schedule/shifts/new"}>
-              <.icon name="hero-plus" /> Schicht anlegen
+              <.icon name="hero-plus-bold" /> Schicht anlegen
             </.button>
           </div>
         </:actions>

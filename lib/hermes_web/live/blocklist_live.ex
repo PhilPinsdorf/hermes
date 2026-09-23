@@ -27,7 +27,7 @@ defmodule HermesWeb.BlocklistLive do
         </:subtitle>
         <:actions>
           <.button variant="primary" patch={~p"/blocked/new"}>
-            <.icon name="hero-plus" /> Nummer blockieren
+            <.icon name="hero-plus-bold" /> Nummer blockieren
           </.button>
         </:actions>
       </.header>

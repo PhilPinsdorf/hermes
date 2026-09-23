@@ -9,7 +9,10 @@ module.exports = plugin(function({matchComponents, theme}) {
     ["", "/24/outline"],
     ["-solid", "/24/solid"],
     ["-mini", "/20/solid"],
-    ["-micro", "/16/solid"]
+    ["-micro", "/16/solid"],
+    // Hermes: the outline set again, but with fatter strokes. Heroicons are
+    // masks, so weight can only come from the file itself – see app.css.
+    ["-bold", "/24/outline"]
   ]
   icons.forEach(([suffix, dir]) => {
     fs.readdirSync(path.join(iconsDir, dir)).forEach(file => {
@@ -20,6 +23,9 @@ module.exports = plugin(function({matchComponents, theme}) {
   matchComponents({
     "hero": ({name, fullPath}) => {
       let content = fs.readFileSync(fullPath).toString().replace(/\r?\n|\r/g, "")
+      if (name.endsWith("-bold")) {
+        content = content.replace(/stroke-width="[\d.]+"/, 'stroke-width="2.25"')
+      }
       content = encodeURIComponent(content)
       let size = theme("spacing.6")
       if (name.endsWith("-mini")) {
