@@ -30,11 +30,12 @@ defmodule Hermes.Calls.Log do
   @doc """
   Lists calls, newest first.
 
-  Filters: `:result`, `:person_id`, `:from`, `:to` (dates in local time),
-  `:limit` and `:offset`.
+  Filters: `:result`, `:person_id` (who took the call), `:attendee_id` (who was
+  rung at all), `:number` (digits anywhere in the caller's number), `:from`,
+  `:to` (dates in local time), `:limit` and `:offset`.
   """
   def list_calls(filters \\ %{}) do
-    CallLog
+    base_query()
     |> filter_by(filters)
     |> order_by([c], desc: c.started_at, desc: c.id)
     |> limit(^Map.get(filters, :limit, 50))
@@ -45,7 +46,7 @@ defmodule Hermes.Calls.Log do
 
   @doc "Number of calls matching the filters."
   def count_calls(filters \\ %{}) do
-    CallLog
+    base_query()
     |> filter_by(filters)
     |> Repo.aggregate(:count)
   end
@@ -74,6 +75,9 @@ defmodule Hermes.Calls.Log do
     |> Repo.all()
   end
 
+  # Named, so the attendee filter can reach the call from its subquery.
+  defp base_query, do: from(c in CallLog, as: :call)
+
   defp filter_by(query, filters) do
     Enum.reduce(filters, query, fn
       {:result, result}, query when result not in [nil, "", :all] ->
@@ -81,6 +85,21 @@ defmodule Hermes.Calls.Log do
 
       {:person_id, person_id}, query when person_id not in [nil, "", :all] ->
         where(query, [c], c.person_id == ^person_id)
+
+      # Everyone whose phone rang, not only whoever ended up taking the call.
+      {:attendee_id, person_id}, query when person_id not in [nil, "", :all] ->
+        where(
+          query,
+          exists(
+            from(a in CallAttempt,
+              where: a.call_log_id == parent_as(:call).id and a.person_id == ^person_id
+            )
+          )
+        )
+
+      # The number is stored as E.164, so we search for bare digits in it.
+      {:number, digits}, query when is_binary(digits) and digits != "" ->
+        where(query, [c], like(c.caller_number, ^"%#{digits}%"))
 
       {:from, %Date{} = from}, query ->
         where(query, [c], c.started_at >= ^start_of_day(from))

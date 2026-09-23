@@ -22,6 +22,25 @@ defmodule HermesWeb.UserManagementLiveTest do
       assert html =~ "du"
     end
 
+    test "searches by email", %{conn: conn, user: user} do
+      other = user_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/users")
+
+      # By id, because the header shows your own address on every page.
+      lv
+      |> form("#user-search", search: %{q: hd(String.split(other.email, "@"))})
+      |> render_change()
+
+      assert has_element?(lv, "#users-#{other.id}")
+      refute has_element?(lv, "#users-#{user.id}")
+
+      html = lv |> form("#user-search", search: %{q: "gibtesnicht"}) |> render_change()
+      assert html =~ "Kein Benutzer gefunden."
+
+      lv |> form("#user-search", search: %{q: ""}) |> render_change()
+      assert has_element?(lv, "#users-#{user.id}")
+    end
+
     test "deletes another user", %{conn: conn} do
       other = user_fixture()
       {:ok, lv, _html} = live(conn, ~p"/users")

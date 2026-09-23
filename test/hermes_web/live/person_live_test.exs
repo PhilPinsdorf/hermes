@@ -30,6 +30,28 @@ defmodule HermesWeb.PersonLiveTest do
       assert html =~ "inaktiv"
     end
 
+    test "searches by name and by number", %{conn: conn} do
+      person_fixture(name: "Anna Muster", phone_e164: "0171 1234567")
+      person_fixture(name: "Bert Beispiel", phone_e164: "030 999888")
+
+      {:ok, lv, _html} = live(conn, ~p"/people")
+
+      html = lv |> form("#person-search", search: %{q: "anna"}) |> render_change()
+      assert html =~ "Anna Muster"
+      refute html =~ "Bert Beispiel"
+
+      # The number as it is typed on a phone, not as it is stored.
+      html = lv |> form("#person-search", search: %{q: "0171"}) |> render_change()
+      assert html =~ "Anna Muster"
+      refute html =~ "Bert Beispiel"
+
+      html = lv |> form("#person-search", search: %{q: "niemand"}) |> render_change()
+      assert html =~ "Keine Person gefunden."
+
+      html = lv |> form("#person-search", search: %{q: ""}) |> render_change()
+      assert html =~ "Bert Beispiel"
+    end
+
     test "the list does not delete; that happens while editing", %{conn: conn} do
       person = person_fixture(name: "Bleibt Erstmal")
       {:ok, lv, _html} = live(conn, ~p"/people")

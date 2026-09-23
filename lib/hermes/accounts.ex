@@ -56,10 +56,22 @@ defmodule Hermes.Accounts do
   def get_user!(id), do: Repo.get!(User, id)
 
   @doc """
-  Lists all users ordered by email.
+  Lists all users ordered by email. With a `search` term only the addresses
+  containing it are returned.
   """
-  def list_users do
-    Repo.all(from u in User, order_by: u.email)
+  def list_users(search \\ nil) do
+    User
+    |> search_users(search)
+    |> order_by([u], asc: u.email)
+    |> Repo.all()
+  end
+
+  defp search_users(query, search) when search in [nil, ""], do: query
+
+  defp search_users(query, search) do
+    # A % or _ in the term would otherwise act as a wildcard.
+    term = String.replace(String.trim(search), ~r/[\\%_]/, "\\\\\\0")
+    where(query, [u], ilike(u.email, ^"%#{term}%"))
   end
 
   ## User management

@@ -48,13 +48,33 @@ defmodule HermesWeb.CallLive.Index do
         for={@filter_form}
         id="call-filter"
         phx-change="filter"
-        class="grid grid-cols-2 sm:grid-cols-4 gap-x-3"
+        class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-3"
       >
+        <%!-- The search box gets the whole width on a phone, where two
+              columns would leave it too narrow to read a number in. --%>
+        <div class="col-span-2 sm:col-span-1">
+          <.input
+            field={@filter_form[:number]}
+            type="search"
+            label="Nummer"
+            placeholder="z. B. 0171 123"
+            autocomplete="off"
+            phx-debounce="300"
+          />
+        </div>
         <.input
           field={@filter_form[:result]}
           type="select"
           label="Ergebnis"
           options={[{"Alle", ""} | Enum.map(CallLog.results(), &{Labels.result(&1), &1})]}
+        />
+        <%!-- Two ways to ask for a person: whose phone rang at all, and who
+              ended up taking the call. --%>
+        <.input
+          field={@filter_form[:attendee_id]}
+          type="select"
+          label="Beteiligt"
+          options={[{"Alle", ""} | Enum.map(@people, &{&1.name, &1.id})]}
         />
         <.input
           field={@filter_form[:person_id]}
@@ -313,8 +333,19 @@ defmodule HermesWeb.CallLive.Index do
     %{}
     |> put_filter(:result, params["result"])
     |> put_filter(:person_id, params["person_id"])
+    |> put_filter(:attendee_id, params["attendee_id"])
+    |> put_number(params["number"])
     |> put_date(:from, params["from"])
     |> put_date(:to, params["to"])
+  end
+
+  # Whatever someone types — "0171 123", "+49 171", "171123" — ends up as the
+  # digits that sit in the stored number.
+  defp put_number(filters, value) do
+    case PhoneNumber.search_digits(value) do
+      "" -> filters
+      digits -> Map.put(filters, :number, digits)
+    end
   end
 
   defp put_filter(filters, _key, value) when value in [nil, ""], do: filters

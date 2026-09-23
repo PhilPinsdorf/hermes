@@ -25,8 +25,28 @@ defmodule HermesWeb.UserLive.Index do
         </:actions>
       </.header>
 
+      <.form
+        :if={@users != [] or @search != ""}
+        for={@search_form}
+        id="user-search"
+        phx-change="search"
+        class="max-w-sm"
+      >
+        <.input
+          field={@search_form[:q]}
+          type="search"
+          placeholder="E-Mail suchen"
+          autocomplete="off"
+          phx-debounce="300"
+        />
+      </.form>
+
+      <p :if={@users == []} id="users-empty" class="text-base-content/70">
+        Kein Benutzer gefunden.
+      </p>
+
       <%!-- Phones: the address is the whole row, so a label for it is noise. --%>
-      <ul id="user-cards" class="sm:hidden space-y-2">
+      <ul :if={@users != []} id="user-cards" class="sm:hidden space-y-2">
         <li
           :for={user <- @users}
           id={"user-card-#{user.id}"}
@@ -55,7 +75,7 @@ defmodule HermesWeb.UserLive.Index do
         </li>
       </ul>
 
-      <div class="hidden sm:block">
+      <div :if={@users != []} class="hidden sm:block">
         <.table id="users" rows={@users} row_id={&"users-#{&1.id}"}>
           <:col :let={user} label="E-Mail">{user.email}</:col>
           <%!-- Your own row carries the marker instead of a button; the account
@@ -95,10 +115,20 @@ defmodule HermesWeb.UserLive.Index do
      socket
      |> assign(:page_title, "Benutzer")
      |> assign(:confirm_delete, nil)
-     |> assign(:users, Accounts.list_users())}
+     |> assign(:search, "")
+     |> assign(:search_form, to_form(%{"q" => ""}, as: :search))
+     |> load_users()}
   end
 
   @impl true
+  def handle_event("search", %{"search" => %{"q" => term}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search, term)
+     |> assign(:search_form, to_form(%{"q" => term}, as: :search))
+     |> load_users()}
+  end
+
   def handle_event("ask_delete", %{"id" => id}, socket) do
     {:noreply, assign(socket, :confirm_delete, Accounts.get_user!(id))}
   end
@@ -117,12 +147,16 @@ defmodule HermesWeb.UserLive.Index do
 
         {:noreply,
          socket
-         |> assign(:users, Accounts.list_users())
+         |> load_users()
          |> put_flash(:info, "#{user.email} wurde gelöscht.")}
 
       {:error, :self} ->
         {:noreply, put_flash(socket, :error, "Du kannst dich nicht selbst löschen.")}
     end
+  end
+
+  defp load_users(socket) do
+    assign(socket, :users, Accounts.list_users(socket.assigns.search))
   end
 
   defp self?(user, scope), do: user.id == scope.user.id

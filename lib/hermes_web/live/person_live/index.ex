@@ -24,8 +24,24 @@ defmodule HermesWeb.PersonLive.Index do
         </:actions>
       </.header>
 
+      <.form
+        :if={@people != [] or @search != ""}
+        for={@search_form}
+        id="person-search"
+        phx-change="search"
+        class="max-w-sm"
+      >
+        <.input
+          field={@search_form[:q]}
+          type="search"
+          placeholder="Name oder Nummer suchen"
+          autocomplete="off"
+          phx-debounce="300"
+        />
+      </.form>
+
       <p :if={@people == []} id="people-empty" class="text-base-content/70">
-        Noch keine Personen angelegt.
+        {(@search != "" && "Keine Person gefunden.") || "Noch keine Personen angelegt."}
       </p>
 
       <%!-- Phones: one card per person, the name first. --%>
@@ -80,6 +96,17 @@ defmodule HermesWeb.PersonLive.Index do
      socket
      |> assign(:page_title, "Personen")
      |> assign(:default_ring_timeout, Settings.get().ring_timeout_seconds)
+     |> assign(:search, "")
+     |> assign(:search_form, to_form(%{"q" => ""}, as: :search))
+     |> load_people()}
+  end
+
+  @impl true
+  def handle_event("search", %{"search" => %{"q" => term}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search, term)
+     |> assign(:search_form, to_form(%{"q" => term}, as: :search))
      |> load_people()}
   end
 
@@ -94,6 +121,6 @@ defmodule HermesWeb.PersonLive.Index do
   defp ring_timeout(%{ring_timeout_seconds: seconds}, _default), do: "#{seconds} s"
 
   defp load_people(socket) do
-    assign(socket, :people, Directory.list_people())
+    assign(socket, :people, Directory.list_people(socket.assigns.search))
   end
 end

@@ -138,6 +138,33 @@ defmodule Hermes.Directory.PhoneNumber do
   def to_dialable(number), do: number
 
   @doc """
+  Reduces what someone types into a search box to the digits that can be
+  looked for inside a stored number. Separators disappear and so does the
+  trunk prefix: `0171` is searched for as `171`, because that is how the
+  number sits in the database (`+491711234567`).
+
+  ## Examples
+
+      iex> search_digits("0171 123")
+      "171123"
+
+      iex> search_digits("+49 171")
+      "49171"
+
+      iex> search_digits("  ")
+      ""
+
+  """
+  @spec search_digits(String.t() | nil) :: String.t()
+  def search_digits(nil), do: ""
+
+  def search_digits(input) when is_binary(input) do
+    input
+    |> String.replace(~r/\D/u, "")
+    |> String.trim_leading("0")
+  end
+
+  @doc """
   Formats an E.164 number for display, e.g. `+49 171 1234567`.
   Only the country code is split off; German area codes vary in length.
   """

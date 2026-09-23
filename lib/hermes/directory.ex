@@ -6,7 +6,7 @@ defmodule Hermes.Directory do
   import Ecto.Query, warn: false
   alias Hermes.Repo
 
-  alias Hermes.Directory.Person
+  alias Hermes.Directory.{Person, PhoneNumber}
 
   @topic "directory"
 
@@ -19,9 +19,34 @@ defmodule Hermes.Directory do
 
   @doc """
   Returns all people, ordered by position, then name.
+
+  With a `search` term only those whose name or number contains it are
+  returned — the number as typed, so `0171` finds `+49171…`.
   """
-  def list_people do
-    Repo.all(from p in Person, order_by: [asc: p.position, asc: p.name])
+  def list_people(search \\ nil) do
+    Person
+    |> search_people(search)
+    |> order_by([p], asc: p.position, asc: p.name)
+    |> Repo.all()
+  end
+
+  defp search_people(query, search) when search in [nil, ""], do: query
+
+  defp search_people(query, search) do
+    name = "%#{escape_like(String.trim(search))}%"
+
+    case PhoneNumber.search_digits(search) do
+      "" ->
+        where(query, [p], ilike(p.name, ^name))
+
+      digits ->
+        where(query, [p], ilike(p.name, ^name) or like(p.phone_e164, ^"%#{digits}%"))
+    end
+  end
+
+  # A name may well contain a % or _, which LIKE would read as a wildcard.
+  defp escape_like(term) do
+    String.replace(term, ~r/[\\%_]/, "\\\\\\0")
   end
 
   @doc """

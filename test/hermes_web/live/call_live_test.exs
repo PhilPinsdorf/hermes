@@ -114,6 +114,57 @@ defmodule HermesWeb.CallLiveTest do
     assert html =~ "Ansage"
   end
 
+  test "searches for a number, however it is typed", %{conn: conn} do
+    record(%{caller_number: "+491711234567"})
+    record(%{caller_number: "+4930999888"})
+
+    {:ok, lv, _html} = live(conn, ~p"/calls")
+
+    for typed <- ["0171 1234567", "+49 171", "1711234"] do
+      html = lv |> form("#call-filter", filter: %{number: typed}) |> render_change()
+
+      assert html =~ "1 Anruf"
+      assert html =~ "+49 1711234567"
+      refute html =~ "+49 30999888"
+    end
+
+    html = lv |> form("#call-filter", filter: %{number: ""}) |> render_change()
+    assert html =~ "2 Anrufe"
+  end
+
+  test "filters by everyone who was rung, not just by who took the call", %{conn: conn} do
+    anna = person_fixture(name: "Anna")
+    bert = person_fixture(name: "Bert")
+
+    # Anna's phone rang first, Bert ended up taking the call.
+    record(%{
+      caller_number: "+4930111222",
+      result: :bridged,
+      person_id: bert.id,
+      attempts: [
+        %{person_id: anna.id, person_name: "Anna", outcome: :no_answer},
+        %{person_id: bert.id, person_name: "Bert", outcome: :confirmed}
+      ]
+    })
+
+    record(%{caller_number: "+4930999888", result: :announced})
+
+    {:ok, lv, _html} = live(conn, ~p"/calls")
+
+    html = lv |> form("#call-filter", filter: %{attendee_id: anna.id}) |> render_change()
+    assert html =~ "1 Anruf"
+    assert html =~ "+49 30111222"
+
+    # The same call, asked for the other way round: Anna never took it.
+    html =
+      lv
+      |> form("#call-filter", filter: %{attendee_id: "", person_id: anna.id})
+      |> render_change()
+
+    assert html =~ "0 Anrufe"
+    assert has_element?(lv, "#calls-empty")
+  end
+
   describe "blocking from the list" do
     test "offers the button and blocks the caller", %{conn: conn} do
       call = record(%{caller_number: "+4930111222"})
