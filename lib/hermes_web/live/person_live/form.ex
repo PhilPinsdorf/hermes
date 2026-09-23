@@ -50,14 +50,24 @@ defmodule HermesWeb.PersonLive.Form do
             :if={@live_action == :edit}
             type="button"
             id="delete-person"
-            phx-click="delete"
-            data-confirm={"#{@person.name} wirklich löschen? Damit verschwinden auch die Schichten und Ausnahmen dieser Person."}
+            phx-click="ask_delete"
             class="btn btn-error sm:ml-auto"
           >
             Person löschen
           </button>
         </footer>
       </.form>
+
+      <.confirm_modal
+        :if={@confirm_delete}
+        id="confirm-delete-person"
+        title="Person löschen?"
+        confirm="Löschen"
+        on_confirm={JS.push("delete")}
+        on_cancel={JS.push("cancel_delete")}
+      >
+        Mit {@person.name} verschwinden auch alle Schichten und Ausnahmen dieser Person.
+      </.confirm_modal>
     </Layouts.app>
     """
   end
@@ -67,6 +77,7 @@ defmodule HermesWeb.PersonLive.Form do
     {:ok,
      socket
      |> assign(:default_ring_timeout, Settings.get().ring_timeout_seconds)
+     |> assign(:confirm_delete, false)
      |> apply_action(socket.assigns.live_action, params)}
   end
 
@@ -96,6 +107,14 @@ defmodule HermesWeb.PersonLive.Form do
 
   def handle_event("save", %{"person" => person_params}, socket) do
     save_person(socket, socket.assigns.live_action, person_params)
+  end
+
+  def handle_event("ask_delete", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete, true)}
+  end
+
+  def handle_event("cancel_delete", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete, false)}
   end
 
   def handle_event("delete", _params, socket) do

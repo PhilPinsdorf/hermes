@@ -114,9 +114,12 @@ defmodule HermesWeb.PersonLiveTest do
       person = person_fixture(name: "Weg Damit")
       {:ok, lv, _html} = live(conn, ~p"/people/#{person}/edit")
 
+      lv |> element("#delete-person") |> render_click()
+      assert has_element?(lv, "#confirm-delete-person", "Weg Damit")
+
       assert {:ok, _index, html} =
                lv
-               |> element("#delete-person")
+               |> element("#confirm-delete-person-confirm")
                |> render_click()
                |> follow_redirect(conn, ~p"/people")
 
@@ -133,7 +136,20 @@ defmodule HermesWeb.PersonLiveTest do
       person = person_fixture(name: "Anna")
       {:ok, lv, _html} = live(conn, ~p"/people/#{person}/edit")
 
-      assert lv |> element("#delete-person") |> render() =~ "Schichten"
+      lv |> element("#delete-person") |> render_click()
+
+      assert lv |> element("#confirm-delete-person") |> render() =~ "Schichten"
+    end
+
+    test "cancelling keeps the person", %{conn: conn} do
+      person = person_fixture(name: "Bleibt")
+      {:ok, lv, _html} = live(conn, ~p"/people/#{person}/edit")
+
+      lv |> element("#delete-person") |> render_click()
+      lv |> element("#confirm-delete-person-cancel") |> render_click()
+
+      refute has_element?(lv, "#confirm-delete-person")
+      assert [%{name: "Bleibt"}] = Directory.list_people()
     end
 
     test "edits a person", %{conn: conn} do

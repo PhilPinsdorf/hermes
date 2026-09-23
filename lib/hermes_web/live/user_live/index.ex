@@ -35,16 +35,29 @@ defmodule HermesWeb.UserLive.Index do
             Mein Konto
           </.link>
         </:action>
-        <:action :let={{id, user}}>
-          <.link
+        <:action :let={{_id, user}}>
+          <button
             :if={!self?(user, @current_scope)}
-            phx-click={JS.push("delete", value: %{id: user.id}) |> hide("##{id}")}
-            data-confirm={"#{user.email} wirklich löschen?"}
+            type="button"
+            id={"delete-user-#{user.id}"}
+            phx-click={JS.push("ask_delete", value: %{id: user.id})}
+            class="link"
           >
             Löschen
-          </.link>
+          </button>
         </:action>
       </.table>
+
+      <.confirm_modal
+        :if={@confirm_delete}
+        id="confirm-delete-user"
+        title="Benutzer löschen?"
+        confirm="Löschen"
+        on_confirm={JS.push("delete", value: %{id: @confirm_delete.id})}
+        on_cancel={JS.push("cancel_delete")}
+      >
+        {@confirm_delete.email} kann sich danach nicht mehr anmelden.
+      </.confirm_modal>
     </Layouts.app>
     """
   end
@@ -54,11 +67,21 @@ defmodule HermesWeb.UserLive.Index do
     {:ok,
      socket
      |> assign(:page_title, "Benutzer")
+     |> assign(:confirm_delete, nil)
      |> stream(:users, Accounts.list_users())}
   end
 
   @impl true
+  def handle_event("ask_delete", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :confirm_delete, Accounts.get_user!(id))}
+  end
+
+  def handle_event("cancel_delete", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete, nil)}
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
+    socket = assign(socket, :confirm_delete, nil)
     user = Accounts.get_user!(id)
 
     case Accounts.delete_user(user, socket.assigns.current_scope.user) do

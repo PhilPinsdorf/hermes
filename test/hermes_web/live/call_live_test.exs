@@ -122,10 +122,28 @@ defmodule HermesWeb.CallLiveTest do
 
       assert has_element?(lv, "#block-#{call.id}", "Blockieren")
 
+      # The button asks first, in a dialog of our own — no browser box.
       lv |> element("#block-#{call.id}") |> render_click()
+      assert has_element?(lv, "#confirm-block", "+49 30111222")
+
+      lv |> element("#confirm-block-confirm") |> render_click()
 
       assert [%{number: "+4930111222", note: "Aus der Anrufliste blockiert"}] =
                Hermes.Blocklist.list()
+
+      refute has_element?(lv, "#confirm-block")
+    end
+
+    test "cancelling the dialog blocks nothing", %{conn: conn} do
+      call = record(%{caller_number: "+4930111222"})
+      {:ok, lv, _html} = live(conn, ~p"/calls")
+
+      lv |> element("#block-#{call.id}") |> render_click()
+      lv |> element("#confirm-block-cancel") |> render_click()
+
+      refute has_element?(lv, "#confirm-block")
+      assert Hermes.Blocklist.list() == []
+      assert has_element?(lv, "#block-#{call.id}")
     end
 
     test "every row of that caller greys out, not just the one clicked", %{conn: conn} do
@@ -137,6 +155,7 @@ defmodule HermesWeb.CallLiveTest do
       assert offered(lv) == 4
 
       lv |> element("#block-#{hd(same).id}") |> render_click()
+      lv |> element("#confirm-block-confirm") |> render_click()
 
       for call <- same do
         assert has_element?(lv, "#blocked-#{call.id}", "Blockiert")

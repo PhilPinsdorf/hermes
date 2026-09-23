@@ -61,9 +61,23 @@ defmodule HermesWeb.BlocklistLiveTest do
     {:ok, entry} = Blocklist.block(%{number: "+491711234567"})
     {:ok, lv, _html} = live(conn, ~p"/blocked")
 
-    lv |> element("#blocked-#{entry.id} a", "Freigeben") |> render_click()
+    lv |> element("#unblock-#{entry.id}") |> render_click()
+    assert has_element?(lv, "#confirm-unblock", "+49 1711234567")
+
+    lv |> element("#confirm-unblock-confirm") |> render_click()
 
     assert Blocklist.list() == []
     assert has_element?(lv, "#blocked-empty")
+  end
+
+  test "cancelling frees nothing", %{conn: conn} do
+    {:ok, entry} = Blocklist.block(%{number: "+491711234567"})
+    {:ok, lv, _html} = live(conn, ~p"/blocked")
+
+    lv |> element("#unblock-#{entry.id}") |> render_click()
+    lv |> element("#confirm-unblock-cancel") |> render_click()
+
+    refute has_element?(lv, "#confirm-unblock")
+    assert length(Blocklist.list()) == 1
   end
 end

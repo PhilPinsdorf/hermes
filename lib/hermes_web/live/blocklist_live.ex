@@ -17,6 +17,7 @@ defmodule HermesWeb.BlocklistLive do
       current_scope={@current_scope}
       branding={@branding}
       current_path={@current_path}
+      wide
     >
       <.header>
         Blockierte Nummern
@@ -48,15 +49,28 @@ defmodule HermesWeb.BlocklistLive do
         </:col>
         <:col :let={entry} label="Blockiert seit">{format_date(entry.inserted_at)}</:col>
         <:action :let={entry}>
-          <.link
-            phx-click={JS.push("unblock", value: %{id: entry.id})}
-            data-confirm={"#{PhoneNumber.format(entry.number)} wieder freigeben?"}
+          <button
+            type="button"
+            id={"unblock-#{entry.id}"}
+            phx-click={JS.push("ask_unblock", value: %{id: entry.id})}
             class="link"
           >
             Freigeben
-          </.link>
+          </button>
         </:action>
       </.table>
+
+      <.confirm_modal
+        :if={@pending_unblock}
+        id="confirm-unblock"
+        title="Nummer freigeben?"
+        confirm="Freigeben"
+        variant="primary"
+        on_confirm={JS.push("unblock", value: %{id: @pending_unblock.id})}
+        on_cancel={JS.push("cancel_unblock")}
+      >
+        {PhoneNumber.format(@pending_unblock.number)} erreicht danach wieder die Bereitschaft.
+      </.confirm_modal>
 
       <div
         :if={@live_action == :new}
@@ -93,7 +107,11 @@ defmodule HermesWeb.BlocklistLive do
   def mount(_params, _session, socket) do
     if connected?(socket), do: Blocklist.subscribe()
 
-    {:ok, socket |> assign(:page_title, "Blockierte Nummern") |> load()}
+    {:ok,
+     socket
+     |> assign(:page_title, "Blockierte Nummern")
+     |> assign(:pending_unblock, nil)
+     |> load()}
   end
 
   @impl true
@@ -126,9 +144,22 @@ defmodule HermesWeb.BlocklistLive do
     end
   end
 
+  def handle_event("ask_unblock", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :pending_unblock, Blocklist.get!(id))}
+  end
+
+  def handle_event("cancel_unblock", _params, socket) do
+    {:noreply, assign(socket, :pending_unblock, nil)}
+  end
+
   def handle_event("unblock", %{"id" => id}, socket) do
     {:ok, _} = id |> Blocklist.get!() |> Blocklist.unblock()
-    {:noreply, socket |> put_flash(:info, "Nummer freigegeben.") |> load()}
+
+    {:noreply,
+     socket
+     |> assign(:pending_unblock, nil)
+     |> put_flash(:info, "Nummer freigegeben.")
+     |> load()}
   end
 
   @impl true

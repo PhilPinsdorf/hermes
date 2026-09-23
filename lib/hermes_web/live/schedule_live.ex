@@ -252,13 +252,14 @@ defmodule HermesWeb.ScheduleLive do
               <span :if={override.note not in [nil, ""]} class="text-base-content/60">
                 {override.note}
               </span>
-              <.link
-                phx-click={JS.push("delete_override", value: %{id: override.id})}
-                data-confirm="Ausnahme wirklich löschen?"
+              <button
+                type="button"
+                id={"delete-override-#{override.id}"}
+                phx-click={JS.push("ask_delete_override", value: %{id: override.id})}
                 class="link ml-auto"
               >
                 Löschen
-              </.link>
+              </button>
             </li>
           </ul>
         </div>
@@ -360,8 +361,7 @@ defmodule HermesWeb.ScheduleLive do
                   :if={@live_action == :edit}
                   type="button"
                   id="delete-shift"
-                  phx-click="delete"
-                  data-confirm="Schicht wirklich löschen?"
+                  phx-click="ask_delete_shift"
                   class="btn btn-error mr-auto"
                 >
                   Löschen
@@ -432,6 +432,29 @@ defmodule HermesWeb.ScheduleLive do
         </div>
         <.link patch={~p"/schedule"} class="modal-backdrop">Schließen</.link>
       </div>
+
+      <%!-- Sits after the shift dialog in the DOM, so it lies on top of it. --%>
+      <.confirm_modal
+        :if={@confirm_delete_shift}
+        id="confirm-delete-shift"
+        title="Schicht löschen?"
+        confirm="Löschen"
+        on_confirm={JS.push("delete")}
+        on_cancel={JS.push("cancel_delete_shift")}
+      >
+        Die Schicht verschwindet aus dem Wochenplan.
+      </.confirm_modal>
+
+      <.confirm_modal
+        :if={@confirm_delete_override}
+        id="confirm-delete-override"
+        title="Ausnahme löschen?"
+        confirm="Löschen"
+        on_confirm={JS.push("delete_override", value: %{id: @confirm_delete_override.id})}
+        on_cancel={JS.push("cancel_delete_override")}
+      >
+        Danach gilt für {@confirm_delete_override.person.name} wieder der Wochenplan.
+      </.confirm_modal>
     </Layouts.app>
     """
   end
@@ -448,6 +471,8 @@ defmodule HermesWeb.ScheduleLive do
      socket
      |> assign(:page_title, "Wochenplan")
      |> assign(:hour_lines, @hour_lines)
+     |> assign(:confirm_delete_shift, false)
+     |> assign(:confirm_delete_override, nil)
      |> assign_now()
      |> load()}
   end
@@ -518,14 +543,31 @@ defmodule HermesWeb.ScheduleLive do
     end
   end
 
+  def handle_event("ask_delete_shift", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete_shift, true)}
+  end
+
+  def handle_event("cancel_delete_shift", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete_shift, false)}
+  end
+
   def handle_event("delete", _params, socket) do
     {:ok, _} = Schedule.delete_shift(socket.assigns.shift)
 
     {:noreply,
      socket
+     |> assign(:confirm_delete_shift, false)
      |> put_flash(:info, "Schicht gelöscht.")
      |> load()
      |> push_patch(to: ~p"/schedule")}
+  end
+
+  def handle_event("ask_delete_override", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :confirm_delete_override, Schedule.get_override!(id))}
+  end
+
+  def handle_event("cancel_delete_override", _params, socket) do
+    {:noreply, assign(socket, :confirm_delete_override, nil)}
   end
 
   def handle_event("validate_override", %{"override" => params}, socket) do
@@ -549,7 +591,12 @@ defmodule HermesWeb.ScheduleLive do
 
   def handle_event("delete_override", %{"id" => id}, socket) do
     {:ok, _} = id |> Schedule.get_override!() |> Schedule.delete_override()
-    {:noreply, socket |> put_flash(:info, "Ausnahme gelöscht.") |> load()}
+
+    {:noreply,
+     socket
+     |> assign(:confirm_delete_override, nil)
+     |> put_flash(:info, "Ausnahme gelöscht.")
+     |> load()}
   end
 
   @impl true

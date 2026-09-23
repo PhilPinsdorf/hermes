@@ -115,17 +115,30 @@ defmodule HermesWeb.CallLive.Index do
           >
             Blockiert
           </span>
-          <.link
+          <button
             :if={call.caller_number && not Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+            type="button"
             id={"block-#{call.id}"}
-            phx-click={JS.push("block", value: %{number: call.caller_number})}
-            data-confirm={"Anrufe von #{PhoneNumber.format(call.caller_number)} künftig mit einer Ansage abweisen?"}
-            class="link whitespace-nowrap"
+            phx-click={JS.push("ask_block", value: %{number: call.caller_number})}
+            class="btn btn-xs btn-error"
           >
             Blockieren
-          </.link>
+          </button>
         </:action>
       </.table>
+
+      <.confirm_modal
+        :if={@pending_block}
+        id="confirm-block"
+        title="Nummer blockieren?"
+        confirm="Blockieren"
+        on_confirm={JS.push("block", value: %{number: @pending_block})}
+        on_cancel={JS.push("cancel_block")}
+      >
+        Anrufe von {PhoneNumber.format(@pending_block)} hören künftig nur noch eine Ansage –
+        es klingelt kein Telefon mehr. Rückgängig machen lässt sich das unter
+        „Blockiert".
+      </.confirm_modal>
     </Layouts.app>
     """
   end
@@ -146,6 +159,7 @@ defmodule HermesWeb.CallLive.Index do
      |> assign_default_period()
      |> assign(:running, Calls.running())
      |> assign(:blocked_numbers, Blocklist.numbers())
+     |> assign(:pending_block, nil)
      |> load_calls()}
   end
 
@@ -185,7 +199,17 @@ defmodule HermesWeb.CallLive.Index do
      |> load_calls()}
   end
 
+  def handle_event("ask_block", %{"number" => number}, socket) do
+    {:noreply, assign(socket, :pending_block, number)}
+  end
+
+  def handle_event("cancel_block", _params, socket) do
+    {:noreply, assign(socket, :pending_block, nil)}
+  end
+
   def handle_event("block", %{"number" => number}, socket) do
+    socket = assign(socket, :pending_block, nil)
+
     case Blocklist.block(%{number: number, note: "Aus der Anrufliste blockiert"}) do
       {:ok, _blocked} ->
         {:noreply, socket |> put_flash(:info, "Nummer blockiert.") |> reload_blocked()}

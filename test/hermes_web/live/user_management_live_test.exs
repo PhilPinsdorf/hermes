@@ -26,10 +26,10 @@ defmodule HermesWeb.UserManagementLiveTest do
       other = user_fixture()
       {:ok, lv, _html} = live(conn, ~p"/users")
 
-      html =
-        lv
-        |> element("#users-#{other.id} a", "Löschen")
-        |> render_click()
+      lv |> element("#delete-user-#{other.id}") |> render_click()
+      assert has_element?(lv, "#confirm-delete-user", other.email)
+
+      html = lv |> element("#confirm-delete-user-confirm") |> render_click()
 
       assert html =~ "#{other.email} wurde gelöscht."
       refute Accounts.get_user_by_email(other.email)

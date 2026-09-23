@@ -199,6 +199,7 @@ defmodule HermesWeb.ScheduleLiveTest do
       {:ok, lv, _html} = live(conn, ~p"/schedule/shifts/#{shift.id}/edit")
 
       lv |> element("#delete-shift") |> render_click()
+      lv |> element("#confirm-delete-shift-confirm") |> render_click()
 
       assert_patch(lv, ~p"/schedule")
       assert Schedule.list_shifts() == []
@@ -279,7 +280,10 @@ defmodule HermesWeb.ScheduleLiveTest do
       override = override_fixture()
       {:ok, lv, _html} = live(conn, ~p"/schedule")
 
-      lv |> element("#override-#{override.id} a", "Löschen") |> render_click()
+      lv |> element("#delete-override-#{override.id}") |> render_click()
+      assert has_element?(lv, "#confirm-delete-override")
+
+      lv |> element("#confirm-delete-override-confirm") |> render_click()
 
       assert Schedule.list_upcoming_overrides() == []
       assert has_element?(lv, "#overrides-empty")

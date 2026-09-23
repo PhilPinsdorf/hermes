@@ -340,6 +340,73 @@ defmodule HermesWeb.CoreComponents do
   end
 
   @doc """
+  Asks before something irreversible happens.
+
+  The browser's own `data-confirm` box (from `phoenix_html`) cannot be styled:
+  it is `window.confirm`, which answers synchronously, while a dialog of our
+  own does not. So this is a normal LiveView modal — the caller keeps what is
+  pending in an assign and renders this while it is set.
+
+  ## Examples
+
+      <.confirm_modal
+        :if={@pending}
+        id="confirm-delete"
+        title="Wirklich löschen?"
+        confirm="Löschen"
+        on_confirm={JS.push("delete", value: %{id: @pending.id})}
+        on_cancel={JS.push("cancel")}
+      >
+        {@pending.name} verschwindet damit endgültig.
+      </.confirm_modal>
+  """
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :confirm, :string, default: "Bestätigen", doc: "label of the confirming button"
+  attr :on_confirm, JS, required: true
+  attr :on_cancel, JS, required: true
+
+  attr :variant, :string,
+    default: "error",
+    values: ~w(error primary),
+    doc: "error for destructive actions, primary for the rest"
+
+  slot :inner_block, required: true
+
+  def confirm_modal(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class="modal modal-open modal-bottom sm:modal-middle"
+      phx-window-keydown={@on_cancel}
+      phx-key="escape"
+    >
+      <div class="modal-box">
+        <h3 class="text-lg font-semibold">{@title}</h3>
+        <p class="mt-2 text-base-content/80">{render_slot(@inner_block)}</p>
+
+        <div class="modal-action">
+          <button type="button" id={"#{@id}-cancel"} phx-click={@on_cancel} class="btn btn-neutral">
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            id={"#{@id}-confirm"}
+            phx-click={@on_confirm}
+            class={["btn", (@variant == "error" && "btn-error") || "btn-primary"]}
+            phx-mounted={JS.focus()}
+          >
+            {@confirm}
+          </button>
+        </div>
+      </div>
+      <button type="button" phx-click={@on_cancel} class="modal-backdrop" aria-label="Schließen">
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a table with generic styling.
 
   ## Examples
