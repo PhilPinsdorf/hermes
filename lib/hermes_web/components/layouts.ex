@@ -188,6 +188,13 @@ defmodule HermesWeb.Layouts do
   end
 
   @doc """
+  Cache marker for the built-in favicon. Browsers keep favicons in a cache a
+  reload does not clear, so a redrawn mark only appears once its URL changes —
+  bump this whenever `favicon.svg` or `favicon.ico` is edited.
+  """
+  def favicon_version, do: "2"
+
+  @doc """
   The logo of this installation, or a neutral icon when none was uploaded.
   """
   attr :branding, :map, required: true

@@ -211,8 +211,9 @@ defmodule HermesWeb.SettingsLiveTest do
     test "carries a favicon even without an uploaded logo", %{conn: conn} do
       html = conn |> get(~p"/settings") |> html_response(200)
 
-      assert html =~ ~s(rel="icon" href="/favicon.svg")
-      assert html =~ ~s(rel="icon" href="/favicon.ico")
+      # With the cache marker, otherwise a redrawn icon never reaches the browser.
+      assert html =~ ~s(rel="icon" href="/favicon.svg?v=)
+      assert html =~ ~s(rel="icon" href="/favicon.ico?v=)
       refute html =~ "/branding/logo"
     end
 

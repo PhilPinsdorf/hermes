@@ -9,11 +9,14 @@
     <%!-- The uploaded logo if there is one, otherwise Hermes' own mark. Without
           a link at all the browser falls back to whatever it finds, which used
           to be the stock Phoenix icon. --%>
+    <%!-- The ?v= marker is what makes a changed icon actually show up: browsers
+          keep favicons in a cache of their own that a reload does not clear, so
+          a new icon at an old URL stays invisible. Bump it when the mark changes. --%>
     <%= if brand(assigns).logo? do %>
       <link rel="icon" href={~p"/branding/logo?v=#{brand(assigns).logo_version}"} />
     <% else %>
-      <link rel="icon" href={~p"/favicon.svg"} type="image/svg+xml" />
-      <link rel="icon" href={~p"/favicon.ico"} sizes="16x16 32x32 48x48" />
+      <link rel="icon" href={~p"/favicon.ico?v=#{favicon_version()}"} sizes="48x48" />
+      <link rel="icon" href={~p"/favicon.svg?v=#{favicon_version()}"} type="image/svg+xml" sizes="any" />
     <% end %>
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
