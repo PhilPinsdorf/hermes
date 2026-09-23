@@ -41,7 +41,7 @@ defmodule HermesWeb.UserLive.Index do
             type="button"
             id={"delete-user-#{user.id}"}
             phx-click={JS.push("ask_delete", value: %{id: user.id})}
-            class="link"
+            class="btn btn-xs btn-error"
           >
             Löschen
           </button>

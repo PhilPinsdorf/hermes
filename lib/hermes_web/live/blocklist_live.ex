@@ -53,7 +53,7 @@ defmodule HermesWeb.BlocklistLive do
             type="button"
             id={"unblock-#{entry.id}"}
             phx-click={JS.push("ask_unblock", value: %{id: entry.id})}
-            class="link"
+            class="btn btn-xs btn-primary"
           >
             Freigeben
           </button>

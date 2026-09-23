@@ -256,7 +256,7 @@ defmodule HermesWeb.ScheduleLive do
                 type="button"
                 id={"delete-override-#{override.id}"}
                 phx-click={JS.push("ask_delete_override", value: %{id: override.id})}
-                class="link ml-auto"
+                class="btn btn-xs btn-error ml-auto"
               >
                 Löschen
               </button>
