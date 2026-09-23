@@ -65,7 +65,9 @@
   --table-body: #1f2937;
   --badge-quiet: #374151;
   --toggle-track: #4b5563;
-  --btn-error-hover: #ef4444;
+  --btn-error-bg: #b91c1c;
+  --btn-error-fg: #ffffff;
+  --btn-error-hover: #7f1d1d;
   --field-bg: #374151;
   --field-border: #374151;
   --link-color: #00b5ad;
@@ -113,6 +115,8 @@
   --table-body: #ffffff;
   --badge-quiet: #e5e7eb;
   --toggle-track: #d1d5db;
+  --btn-error-bg: #ef4444;
+  --btn-error-fg: #ffffff;
   --btn-error-hover: #b91c1c;
   --field-bg: #ffffff;
   --field-border: #d1d5db;
@@ -219,9 +223,16 @@ h1, h2, h3 {
   border-color: var(--color-accent);
 }
 
-/* Danger goes the other way from mint: darker on hover, like portals. In the
-   dark theme the base is lighter (the same token carries error *text*, which
-   has to stay readable on near-black), so hover deepens from there. */
+/* The danger button carries its own colour, not --color-error: that token also
+   paints error texts and the "now" line, which have to stay light on the dark
+   background, while a button needs a deep red to read as a warning. Values and
+   the darker hover are portals' (red-500/700 light, red-700/900 dark). */
+.btn-error {
+  background-color: var(--btn-error-bg);
+  border-color: var(--btn-error-bg);
+  color: var(--btn-error-fg);
+}
+
 .btn-error:hover:not(:disabled) {
   background-color: var(--btn-error-hover);
   border-color: var(--btn-error-hover);

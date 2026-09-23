@@ -461,7 +461,7 @@ defmodule HermesWeb.CoreComponents do
             <%!-- w-0 keeps the column as narrow as it can be, which would
                   otherwise break "Mein Konto" across two lines. --%>
             <td :if={@action != []} class="w-0 font-semibold whitespace-nowrap">
-              <div class="flex items-center gap-3 max-sm:justify-end max-sm:pt-1">
+              <div class="flex items-center justify-center gap-3 max-sm:justify-end max-sm:pt-1">
                 <%= for action <- @action do %>
                   {render_slot(action, @row_item.(row))}
                 <% end %>

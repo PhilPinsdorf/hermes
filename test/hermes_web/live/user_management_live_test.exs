@@ -35,11 +35,14 @@ defmodule HermesWeb.UserManagementLiveTest do
       refute Accounts.get_user_by_email(other.email)
     end
 
-    test "offers no delete link for oneself", %{conn: conn, user: user} do
+    test "marks your own row instead of offering a delete button",
+         %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users")
 
-      refute has_element?(lv, "#users-#{user.id} a", "Löschen")
-      assert has_element?(lv, "#users-#{user.id} a", "Mein Konto")
+      refute has_element?(lv, "#delete-user-#{user.id}")
+      assert has_element?(lv, "#users-#{user.id} .badge", "du")
+      # The account page is reached from the header, not from this table.
+      refute render(lv) =~ "Mein Konto"
     end
 
     test "offers no password link for other users", %{conn: conn} do

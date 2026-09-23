@@ -26,16 +26,11 @@ defmodule HermesWeb.UserLive.Index do
       </.header>
 
       <.table id="users" rows={@streams.users}>
-        <:col :let={{_id, user}} label="E-Mail">
-          {user.email}
-          <span :if={self?(user, @current_scope)} class="badge badge-ghost badge-sm ml-2">du</span>
-        </:col>
+        <:col :let={{_id, user}} label="E-Mail">{user.email}</:col>
+        <%!-- Your own row carries the marker instead of a button; the account
+              page is already one click away in the header. --%>
         <:action :let={{_id, user}}>
-          <.link :if={self?(user, @current_scope)} navigate={~p"/users/settings"}>
-            Mein Konto
-          </.link>
-        </:action>
-        <:action :let={{_id, user}}>
+          <span :if={self?(user, @current_scope)} class="badge badge-ghost badge-sm">du</span>
           <button
             :if={!self?(user, @current_scope)}
             type="button"
