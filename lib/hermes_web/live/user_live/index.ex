@@ -30,7 +30,6 @@ defmodule HermesWeb.UserLive.Index do
         for={@search_form}
         id="user-search"
         phx-change="search"
-        class="max-w-sm"
       >
         <.input
           field={@search_form[:q]}
