@@ -28,6 +28,7 @@ defmodule Hermes.Settings.Setting do
     field :text_no_one_on_duty, :string
     field :text_all_busy, :string
     field :text_confirm, :string
+    field :text_blocked, :string
     field :announce_next_shift, :boolean, default: true
     # Appearance of this installation
     field :brand_name, :string, default: "Hermes"
@@ -59,6 +60,7 @@ defmodule Hermes.Settings.Setting do
       :text_no_one_on_duty,
       :text_all_busy,
       :text_confirm,
+      :text_blocked,
       :announce_next_shift,
       :brand_name
     ])
@@ -89,6 +91,7 @@ defmodule Hermes.Settings.Setting do
     |> validate_length(:text_no_one_on_duty, max: 500)
     |> validate_length(:text_all_busy, max: 500)
     |> validate_length(:text_confirm, max: 500)
+    |> validate_length(:text_blocked, max: 500)
     |> update_change(:brand_name, &String.trim/1)
     |> validate_required([:brand_name])
     |> validate_length(:brand_name, min: 2, max: 40)

@@ -161,6 +161,49 @@ defmodule Hermes.Calls.CallSessionTest do
 
   ## tests
 
+  describe "blocked numbers" do
+    test "no phone rings and the caller hears the announcement" do
+      anna = person_fixture(name: "Anna")
+      on_duty(anna)
+      {:ok, _} = Hermes.Blocklist.block(%{number: "015112345678"})
+
+      {pid, ref} = start_call()
+
+      assert_receive {:answer, @caller_channel}
+      assert_receive {:play, @caller_channel, media}
+      assert media == Sounds.media(:blocked)
+      # Nobody was dialled: the duty roster is never even consulted.
+      refute_received {:create_channel, _endpoint, _id, _args}
+
+      playback_finished(pid, @caller_channel)
+      assert_receive {:hangup, @caller_channel}
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+
+      assert [%{result: :blocked}] = Hermes.Calls.Log.list_calls(%{})
+    end
+
+    test "a number that is not blocked still rings" do
+      anna = person_fixture(name: "Anna")
+      on_duty(anna)
+      {:ok, _} = Hermes.Blocklist.block(%{number: "0171 9999999"})
+
+      {_pid, _ref} = start_call()
+
+      assert_dialed(anna)
+    end
+
+    test "freeing the number lets the caller through again" do
+      anna = person_fixture(name: "Anna")
+      on_duty(anna)
+      {:ok, entry} = Hermes.Blocklist.block(%{number: "015112345678"})
+      {:ok, _} = Hermes.Blocklist.unblock(entry)
+
+      {_pid, _ref} = start_call()
+
+      assert_dialed(anna)
+    end
+  end
+
   describe "nobody to call" do
     test "plays the announcement when nobody is on duty" do
       {pid, _ref} = start_call()

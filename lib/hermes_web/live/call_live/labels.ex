@@ -9,6 +9,7 @@ defmodule HermesWeb.CallLive.Labels do
     all_busy: "Alle im Gespräch",
     rejected: "Abgewiesen",
     paused: "Pausiert",
+    blocked: "Blockiert",
     abandoned: "Aufgelegt",
     failed: "Fehler"
   }
@@ -19,6 +20,7 @@ defmodule HermesWeb.CallLive.Labels do
     all_busy: "badge-warning",
     rejected: "badge-ghost",
     paused: "badge-warning",
+    blocked: "badge-ghost",
     abandoned: "badge-ghost",
     failed: "badge-error"
   }

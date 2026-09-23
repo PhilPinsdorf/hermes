@@ -4,6 +4,7 @@ defmodule HermesWeb.CallLive.Index do
   """
   use HermesWeb, :live_view
 
+  alias Hermes.Blocklist
   alias Hermes.Calls
   alias Hermes.Calls.{CallAttempt, CallLog, Log}
   alias Hermes.Directory
@@ -103,6 +104,27 @@ defmodule HermesWeb.CallLive.Index do
             </span>
           </span>
         </:col>
+        <:action :let={{_id, call}}>
+          <%!-- Blocking is per number, so every row of the same caller shows
+                as blocked, not just the one that was clicked. --%>
+          <span
+            :if={Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+            id={"blocked-#{call.id}"}
+            class="btn btn-xs btn-disabled"
+            title="Diese Nummer ist blockiert"
+          >
+            Blockiert
+          </span>
+          <.link
+            :if={call.caller_number && not Blocklist.blocked?(call.caller_number, @blocked_numbers)}
+            id={"block-#{call.id}"}
+            phx-click={JS.push("block", value: %{number: call.caller_number})}
+            data-confirm={"Anrufe von #{PhoneNumber.format(call.caller_number)} künftig mit einer Ansage abweisen?"}
+            class="link whitespace-nowrap"
+          >
+            Blockieren
+          </.link>
+        </:action>
       </.table>
     </Layouts.app>
     """
@@ -112,6 +134,7 @@ defmodule HermesWeb.CallLive.Index do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Calls.subscribe()
+      Blocklist.subscribe()
       schedule_tick()
     end
 
@@ -122,6 +145,7 @@ defmodule HermesWeb.CallLive.Index do
      |> assign(:people, Directory.list_people())
      |> assign_default_period()
      |> assign(:running, Calls.running())
+     |> assign(:blocked_numbers, Blocklist.numbers())
      |> load_calls()}
   end
 
@@ -161,8 +185,20 @@ defmodule HermesWeb.CallLive.Index do
      |> load_calls()}
   end
 
+  def handle_event("block", %{"number" => number}, socket) do
+    case Blocklist.block(%{number: number, note: "Aus der Anrufliste blockiert"}) do
+      {:ok, _blocked} ->
+        {:noreply, socket |> put_flash(:info, "Nummer blockiert.") |> reload_blocked()}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Nummer konnte nicht blockiert werden.")}
+    end
+  end
+
   @impl true
   def handle_info({:call_logged, _id}, socket), do: {:noreply, load_calls(socket)}
+
+  def handle_info({:blocklist_changed, _entry}, socket), do: {:noreply, reload_blocked(socket)}
 
   def handle_info({event, _channel_id}, socket)
       when event in [:call_started, :call_ended, :call_bridged] do
@@ -176,6 +212,10 @@ defmodule HermesWeb.CallLive.Index do
   end
 
   defp schedule_tick, do: Process.send_after(self(), :tick, :timer.seconds(15))
+
+  defp reload_blocked(socket) do
+    socket |> assign(:blocked_numbers, Blocklist.numbers()) |> load_calls()
+  end
 
   defp load_calls(socket) do
     filters = Map.put(socket.assigns.filters, :limit, @per_page)

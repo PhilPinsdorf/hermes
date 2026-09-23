@@ -131,6 +131,7 @@ defmodule HermesWeb.Layouts do
       {"/", "Übersicht"},
       {"/schedule", "Wochenplan"},
       {"/calls", "Anrufe"},
+      {"/blocked", "Blockiert"},
       {"/people", "Personen"},
       {"/settings", "Einstellungen"},
       {"/users", "Benutzer"}

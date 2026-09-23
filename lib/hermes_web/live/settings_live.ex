@@ -396,6 +396,7 @@ defmodule HermesWeb.SettingsLive do
   defp announcement_title(:no_one_on_duty), do: "Niemand erreichbar"
   defp announcement_title(:all_busy), do: "Alle im Gespräch"
   defp announcement_title(:confirm), do: "Bestätigung auf dem Handy"
+  defp announcement_title(:blocked), do: "Blockierte Nummer"
 
   defp announcement_hint(:no_one_on_duty),
     do: "Hört der Anrufer, wenn niemand Dienst hat oder niemand annimmt."
@@ -405,6 +406,9 @@ defmodule HermesWeb.SettingsLive do
 
   defp announcement_hint(:confirm),
     do: "Hört nur die angerufene Person. Sie muss die Tasten 1, 2 und 3 erklären."
+
+  defp announcement_hint(:blocked),
+    do: "Hört ein Anrufer, dessen Nummer blockiert ist. Es klingelt dann kein Telefon."
 
   defp upload_error(:too_large), do: "Datei ist zu groß (max. 10 MB)"
   defp upload_error(:not_accepted), do: "Dateiformat wird nicht unterstützt"

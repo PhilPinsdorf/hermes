@@ -24,6 +24,7 @@ defmodule Hermes.Calls.CallSession do
   require Logger
 
   alias Hermes.Ari
+  alias Hermes.Blocklist
   alias Hermes.Calls
   alias Hermes.Calls.{Log, Occupancy, Strategy}
   alias Hermes.Schedule
@@ -93,14 +94,25 @@ defmodule Hermes.Calls.CallSession do
 
   @impl true
   def handle_continue(:resolve, state) do
+    # The caller's own channel occupies one of the line's channels, whether we
+    # ring anybody or only play an announcement.
+    state = %{state | inbound_slot: take_channel_slot()}
+
+    if Blocklist.blocked?(state.caller) do
+      Logger.info("call #{state.channel_id}: the caller is blocked")
+      {:noreply, announce(%{state | state: :resolving}, :blocked)}
+    else
+      route(state)
+    end
+  end
+
+  # Who, if anybody, gets to hear this call.
+  defp route(state) do
     busy = MapSet.new(Occupancy.busy_person_ids())
     # call_order, not status: ties are rolled per call, and the next change is
     # of no interest here.
     on_duty = Schedule.call_order()
     available = Enum.reject(on_duty, &MapSet.member?(busy, &1.id))
-
-    # The caller's own channel occupies one of the line's channels.
-    state = %{state | inbound_slot: take_channel_slot()}
 
     cond do
       not state.settings.forwarding_enabled ->
@@ -204,12 +216,21 @@ defmodule Hermes.Calls.CallSession do
     cond do
       state.paused? -> :paused
       Enum.any?(state.attempts, &(&1.outcome == :rejected_all)) -> :rejected
-      state.announced_with == :all_busy -> :all_busy
-      state.announced_with != nil -> :announced
-      state.state == :done and state.attempts == [] -> :abandoned
-      state.state in [:dialing, :confirming, :starting, :resolving] -> :abandoned
+      state.announced_with -> announced_result(state.announced_with)
+      abandoned?(state) -> :abandoned
       true -> :failed
     end
+  end
+
+  # Which announcement the caller got to hear tells us how the call ended.
+  defp announced_result(:blocked), do: :blocked
+  defp announced_result(:all_busy), do: :all_busy
+  defp announced_result(_sound), do: :announced
+
+  # The caller was still waiting when it ended, or nothing was ever tried.
+  defp abandoned?(state) do
+    (state.state == :done and state.attempts == []) or
+      state.state in [:dialing, :confirming, :starting, :resolving]
   end
 
   # ------------------------------------------------------------------

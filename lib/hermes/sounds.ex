@@ -29,7 +29,9 @@ defmodule Hermes.Sounds do
     # played to the caller when everybody on duty is already in a call
     all_busy: "all-busy",
     # played to the called person only, before the call is put through
-    confirm: "confirm"
+    confirm: "confirm",
+    # played to a caller whose number is on the blocklist
+    blocked: "blocked"
   }
 
   @default_texts %{
@@ -38,7 +40,8 @@ defmodule Hermes.Sounds do
     all_busy:
       "Alle Ansprechpartner sind gerade im Gespräch. Bitte rufen Sie in Kürze noch einmal an.",
     confirm:
-      "Anruf für die Bereitschaft. Zum Annehmen die 1, zum Weitergeben die 2, zum Abweisen die 3."
+      "Anruf für die Bereitschaft. Zum Annehmen die 1, zum Weitergeben die 2, zum Abweisen die 3.",
+    blocked: "Diese Nummer kann die Bereitschaft nicht erreichen."
   }
 
   @upload_marker "<eigene Aufnahme>"
@@ -98,6 +101,7 @@ defmodule Hermes.Sounds do
   def text_field(:no_one_on_duty), do: :text_no_one_on_duty
   def text_field(:all_busy), do: :text_all_busy
   def text_field(:confirm), do: :text_confirm
+  def text_field(:blocked), do: :text_blocked
 
   @doc """
   What the file on disk was made from: the text, the upload marker, or `nil`

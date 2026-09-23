@@ -114,6 +114,66 @@ defmodule HermesWeb.CallLiveTest do
     assert html =~ "Ansage"
   end
 
+  describe "blocking from the list" do
+    test "offers the button and blocks the caller", %{conn: conn} do
+      call = record(%{caller_number: "+4930111222"})
+
+      {:ok, lv, _html} = live(conn, ~p"/calls")
+
+      assert has_element?(lv, "#block-#{call.id}", "Blockieren")
+
+      lv |> element("#block-#{call.id}") |> render_click()
+
+      assert [%{number: "+4930111222", note: "Aus der Anrufliste blockiert"}] =
+               Hermes.Blocklist.list()
+    end
+
+    test "every row of that caller greys out, not just the one clicked", %{conn: conn} do
+      # The same caller three times, plus somebody else who must stay clickable.
+      same = for _ <- 1..3, do: record(%{caller_number: "+4930111222"})
+      other = record(%{caller_number: "+4930999888"})
+
+      {:ok, lv, _html} = live(conn, ~p"/calls")
+      assert offered(lv) == 4
+
+      lv |> element("#block-#{hd(same).id}") |> render_click()
+
+      for call <- same do
+        assert has_element?(lv, "#blocked-#{call.id}", "Blockiert")
+        refute has_element?(lv, "#block-#{call.id}")
+      end
+
+      assert has_element?(lv, "#block-#{other.id}", "Blockieren")
+      assert offered(lv) == 1
+    end
+
+    test "a number blocked elsewhere greys the rows out too", %{conn: conn} do
+      call = record(%{caller_number: "+4930111222"})
+      {:ok, lv, _html} = live(conn, ~p"/calls")
+
+      # Blocked on the blocklist page, in another session.
+      {:ok, _} = Hermes.Blocklist.block(%{number: "+4930111222"})
+
+      assert has_element?(lv, "#blocked-#{call.id}", "Blockiert")
+      assert offered(lv) == 0
+    end
+
+    test "an anonymized entry offers nothing to block", %{conn: conn} do
+      record(%{caller_number: nil})
+
+      {:ok, lv, _html} = live(conn, ~p"/calls")
+
+      assert offered(lv) == 0
+      refute render(lv) =~ ~s(id="blocked-)
+    end
+  end
+
+  # How many rows still offer blocking. Counted by id, because the word
+  # "Blockiert" also appears in the navigation.
+  defp offered(lv) do
+    lv |> render() |> then(&Regex.scan(~r/id="block-[0-9]+"/, &1)) |> length()
+  end
+
   test "a new call appears without reloading", %{conn: conn} do
     {:ok, lv, _html} = live(conn, ~p"/calls")
     assert has_element?(lv, "#calls-empty")

@@ -55,6 +55,9 @@ defmodule HermesWeb.Router do
 
       live "/calls", CallLive.Index, :index
 
+      live "/blocked", BlocklistLive, :index
+      live "/blocked/new", BlocklistLive, :new
+
       live "/people", PersonLive.Index, :index
       live "/people/new", PersonLive.Form, :new
       live "/people/:id/edit", PersonLive.Form, :edit
