@@ -133,8 +133,8 @@ defmodule HermesWeb.Layouts do
       {"/calls", "Anrufe"},
       {"/blocked", "Blockiert"},
       {"/people", "Personen"},
-      {"/settings", "Einstellungen"},
-      {"/users", "Benutzer"}
+      {"/users", "Benutzer"},
+      {"/settings", "Einstellungen"}
     ]
   end
 
