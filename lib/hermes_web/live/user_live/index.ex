@@ -33,7 +33,7 @@ defmodule HermesWeb.UserLive.Index do
           class="card card-body gap-1 p-4"
         >
           <div class="flex items-start justify-between gap-2">
-            <p class="break-all font-medium">{user.email}</p>
+            <p class="break-all text-lg font-semibold leading-tight">{user.email}</p>
             <span
               :if={self?(user, @current_scope)}
               class="badge badge-ghost badge-sm shrink-0"
